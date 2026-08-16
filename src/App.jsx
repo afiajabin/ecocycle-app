@@ -1,3 +1,5 @@
+import Login from './pages/Login'
+import Register from './pages/Register'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './context/ToastContext'
@@ -45,7 +47,9 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Layout />}>
                   {/* Home Portal Overview */}
-                  <Route index element={<PortalHome />} />
+                   <Route index element={<Login />} />
+                  <Route path="login" element={<Login />} />
+                  <Route path="register" element={<Register />} />
 
                   {/* User (Citizen) Routes */}
                   <Route path="user">
