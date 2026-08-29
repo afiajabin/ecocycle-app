@@ -1,0 +1,277 @@
+{
+  "info": {
+    "_postman_id": "ecocycle-collector-api-collection",
+    "name": "EcoCycle - Collector API",
+    "description": "Postman collection for EcoCycle Collector module endpoints with JWT authentication.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register Collector",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Afia Jabin\",\n  \"email\": \"afiajabin12@gmail.com\",\n  \"password\": \"password123\",\n  \"role\": \"collector\",\n  \"phone\": \"+880 1712-345678\",\n  \"district\": \"Dhaka\",\n  \"assignedDistricts\": [\"Dhaka\", \"Gazipur\"],\n  \"vehicleType\": \"Electric Waste Van (EV-04)\",\n  \"vehicleNumber\": \"Dhaka Metro-DH-11-2045\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login (Get JWT Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"jwt_token\", jsonData.data.token);",
+                  "    pm.environment.set(\"jwt_token\", jsonData.data.token);",
+                  "    console.log(\"Saved JWT Token to collection variables!\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"afiajabin12@gmail.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Logged-in Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Collector Operations",
+      "item": [
+        {
+          "name": "Get Collector Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/collector/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "collector", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get District Pickup Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/collector/requests?status=all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "collector", "requests"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "Filter by Pending, Accepted, Collected, Delivered to Facility, Completed, or all"
+                },
+                {
+                  "key": "district",
+                  "value": "Dhaka",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "Mirpur",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Request by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/collector/requests/REQ-BD-8903",
+              "host": ["{{base_url}}"],
+              "path": ["api", "collector", "requests", "REQ-BD-8903"]
+            }
+          }
+        },
+        {
+          "name": "Step 1: Accept Pickup Request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/collector/requests/REQ-BD-8903/accept",
+              "host": ["{{base_url}}"],
+              "path": ["api", "collector", "requests", "REQ-BD-8903", "accept"]
+            }
+          }
+        },
+        {
+          "name": "Step 2: Collect & Verify Weight (Scale)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verifiedKg\": 15.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/collector/requests/REQ-BD-8903/collect",
+              "host": ["{{base_url}}"],
+              "path": ["api", "collector", "requests", "REQ-BD-8903", "collect"]
+            }
+          }
+        },
+        {
+          "name": "Step 3: Deliver to Recycling Facility",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"facilityId\": \"FACILITY_OBJECT_ID_HERE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/collector/requests/REQ-BD-8903/deliver",
+              "host": ["{{base_url}}"],
+              "path": ["api", "collector", "requests", "REQ-BD-8903", "deliver"]
+            }
+          }
+        },
+        {
+          "name": "Step 4: Mark Request Completed",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/collector/requests/REQ-BD-8903/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "collector", "requests", "REQ-BD-8903", "complete"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Facilities",
+      "item": [
+        {
+          "name": "Get All Facilities",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/facilities",
+              "host": ["{{base_url}}"],
+              "path": ["api", "facilities"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    }
+  ]
+}
