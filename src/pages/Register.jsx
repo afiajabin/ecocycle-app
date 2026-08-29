@@ -12,12 +12,54 @@ import {
 export default function Register() {
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // UI demonstration only.
-    // Real registration will be connected to the MERN backend later.
-    navigate('/login')
+    const formData = new FormData(e.target)
+
+    const name = formData.get('name')
+    const email = formData.get('email')
+    const district = formData.get('district')
+    const password = formData.get('password')
+    const confirmPassword = formData.get('confirmPassword')
+    const role = formData.get('role')
+
+    if (password !== confirmPassword) {
+      alert('Passwords do not match')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        'http://localhost:4000/api/auth/register',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            district,
+            password,
+            role,
+          }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert(data.message)
+        return
+      }
+
+      alert('Account created successfully')
+      navigate('/login')
+    } catch (error) {
+      console.error('Registration error:', error)
+      alert('Could not connect to the server')
+    }
   }
 
   return (
@@ -56,7 +98,7 @@ export default function Register() {
               <div style={{ marginBottom: '1.5rem' }}>
                 <span className="section-tag">
                   <User size={14} />
-                  Citizen Registration
+                  Account Registration
                 </span>
 
                 <h1
@@ -82,6 +124,7 @@ export default function Register() {
 
               <form onSubmit={handleSubmit}>
 
+                {/* Full Name */}
                 <div className="form-group">
                   <label className="form-label" htmlFor="register-name">
                     Full Name
@@ -102,6 +145,7 @@ export default function Register() {
 
                     <input
                       id="register-name"
+                      name="name"
                       type="text"
                       className="form-input"
                       placeholder="Enter your full name"
@@ -111,6 +155,7 @@ export default function Register() {
                   </div>
                 </div>
 
+                {/* Email */}
                 <div className="form-group">
                   <label className="form-label" htmlFor="register-email">
                     Email Address
@@ -131,6 +176,7 @@ export default function Register() {
 
                     <input
                       id="register-email"
+                      name="email"
                       type="email"
                       className="form-input"
                       placeholder="Enter your email"
@@ -140,6 +186,7 @@ export default function Register() {
                   </div>
                 </div>
 
+                {/* District */}
                 <div className="form-group">
                   <label className="form-label" htmlFor="register-district">
                     District
@@ -160,6 +207,7 @@ export default function Register() {
 
                     <select
                       id="register-district"
+                      name="district"
                       className="form-select"
                       style={{ paddingLeft: '2.75rem' }}
                       defaultValue="Dhaka"
@@ -179,6 +227,26 @@ export default function Register() {
                   </div>
                 </div>
 
+                {/* Role */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="register-role">
+                    Account Type
+                  </label>
+
+                  <select
+                    id="register-role"
+                    name="role"
+                    className="form-select"
+                    required
+                    defaultValue="citizen"
+                  >
+                    <option value="citizen">Citizen</option>
+                    <option value="collector">Collector</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                {/* Passwords */}
                 <div
                   style={{
                     display: 'grid',
@@ -209,6 +277,7 @@ export default function Register() {
 
                       <input
                         id="register-password"
+                        name="password"
                         type="password"
                         className="form-input"
                         placeholder="Password"
@@ -241,6 +310,7 @@ export default function Register() {
 
                       <input
                         id="register-confirm-password"
+                        name="confirmPassword"
                         type="password"
                         className="form-input"
                         placeholder="Confirm"
@@ -251,6 +321,7 @@ export default function Register() {
                   </div>
                 </div>
 
+                {/* Information */}
                 <div
                   style={{
                     background: 'var(--bg-surface-elevated)',
@@ -266,7 +337,10 @@ export default function Register() {
                   <ShieldCheck
                     size={18}
                     color="var(--primary)"
-                    style={{ flexShrink: 0, marginTop: 2 }}
+                    style={{
+                      flexShrink: 0,
+                      marginTop: 2,
+                    }}
                   />
 
                   <p
@@ -276,17 +350,18 @@ export default function Register() {
                       lineHeight: 1.5,
                     }}
                   >
-                    Your account will be registered as a Citizen and connected
-                    to your selected district collection network.
+                    Select the account type you want to register. Your account
+                    will be connected to your selected district network.
                   </p>
                 </div>
 
+                {/* Submit */}
                 <button
                   type="submit"
                   className="btn btn-primary btn-lg"
                   style={{ width: '100%' }}
                 >
-                  <span>Create Citizen Account</span>
+                  <span>Create Account</span>
                   <ArrowRight size={17} />
                 </button>
               </form>
@@ -396,8 +471,8 @@ export default function Register() {
                     color: 'rgba(255,255,255,0.8)',
                   }}
                 >
-                  Register → Submit a pickup request → Collector arrives →
-                  Plastic reaches an authorized facility.
+                  Register → Select your role → Sign in → Access your
+                  appropriate EcoCycle portal.
                 </div>
               </div>
             </div>
