@@ -4,12 +4,81 @@ import { Recycle, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react'
 export default function Login() {
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // UI demonstration only.
-    // Real authentication will be connected to the MERN backend later.
-    navigate('/user/dashboard')
+    const formData = new FormData(e.target)
+
+    const email = formData.get('email')
+    const password = formData.get('password')
+
+    try {
+      const response = await fetch(
+        'http://localhost:4000/api/auth/login',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert(data.message || 'Login failed')
+        return
+      }
+
+      if (!data.token || !data.user) {
+        alert('Invalid login response from server')
+        return
+      }
+
+      const backendRole = data.user.role
+
+      let frontendRole
+
+      if (backendRole === 'citizen') {
+        frontendRole = 'user'
+      } else if (
+        backendRole === 'user' ||
+        backendRole === 'collector' ||
+        backendRole === 'admin'
+      ) {
+        frontendRole = backendRole
+      } else {
+        alert('Invalid account role')
+        return
+      }
+
+      const user = {
+        ...data.user,
+        role: frontendRole,
+      }
+
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(user))
+      localStorage.setItem('ecocycle-active-role', frontendRole)
+
+      alert('Login successful')
+
+      if (frontendRole === 'collector') {
+        window.location.href = '/collector/dashboard'
+      } else if (frontendRole === 'admin') {
+        window.location.href = '/admin/dashboard'
+      } else {
+        window.location.href = '/user/dashboard'
+      }
+
+    } catch (error) {
+      console.error('Login error:', error)
+      alert('Could not connect to the server')
+    }
   }
 
   return (
@@ -35,7 +104,6 @@ export default function Login() {
             }}
           >
 
-            {/* Left Information Panel */}
             <div
               className="card"
               style={{
@@ -137,7 +205,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Login Form */}
             <div
               className="card"
               style={{
@@ -195,6 +262,7 @@ export default function Login() {
 
                     <input
                       id="login-email"
+                      name="email"
                       type="email"
                       className="form-input"
                       placeholder="Enter your email"
@@ -224,6 +292,7 @@ export default function Login() {
 
                     <input
                       id="login-password"
+                      name="password"
                       type="password"
                       className="form-input"
                       placeholder="Enter your password"
