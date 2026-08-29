@@ -1,0 +1,87 @@
+### EcoCycle Collector Module - Local API Testing with REST Client
+### Variables
+@baseUrl = http://localhost:5000/api
+@authToken = {{login.response.body.data.token}}
+
+### 1. Health Check
+GET http://localhost:5000/
+
+### 2. Register Collector Account
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Afia Jabin",
+  "email": "afiajabin12@gmail.com",
+  "password": "password123",
+  "role": "collector",
+  "phone": "+880 1712-345678",
+  "district": "Dhaka",
+  "assignedDistricts": ["Dhaka", "Gazipur"],
+  "vehicleType": "Electric Waste Van (EV-04)",
+  "vehicleNumber": "Dhaka Metro-DH-11-2045"
+}
+
+### 3. Login Collector (Auto-saves token for subsequent requests)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "afiajabin12@gmail.com",
+  "password": "password123"
+}
+
+### 4. Get Current User Profile (Me)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{authToken}}
+
+### 5. Get Collector Dashboard Statistics (KPIs)
+GET {{baseUrl}}/collector/stats
+Authorization: Bearer {{authToken}}
+
+### 6. Get All District Pickup Requests
+GET {{baseUrl}}/collector/requests
+Authorization: Bearer {{authToken}}
+
+### 7. Filter Requests by Status (Pending)
+GET {{baseUrl}}/collector/requests?status=Pending
+Authorization: Bearer {{authToken}}
+
+### 8. Filter Requests by District (Dhaka)
+GET {{baseUrl}}/collector/requests?district=Dhaka
+Authorization: Bearer {{authToken}}
+
+### 9. Get Single Request by Custom ID
+GET {{baseUrl}}/collector/requests/REQ-BD-8903
+Authorization: Bearer {{authToken}}
+
+### 10. Step 1: Accept Pickup Request
+PATCH {{baseUrl}}/collector/requests/REQ-BD-8903/accept
+Authorization: Bearer {{authToken}}
+
+### 11. Step 2: Mark Request Collected with Verified Weight (e.g. 15.5 kg)
+PATCH {{baseUrl}}/collector/requests/REQ-BD-8903/collect
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "verifiedKg": 15.5
+}
+
+### 12. Get All Authorized Recycling Facilities
+# @name getFacilities
+GET {{baseUrl}}/facilities
+
+### 13. Step 3: Deliver to Facility (Replace with valid facility ID from Step 12)
+PATCH {{baseUrl}}/collector/requests/REQ-BD-8903/deliver
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "facilityId": "66ce00000000000000000001"
+}
+
+### 14. Step 4: Mark Request as Completed
+PATCH {{baseUrl}}/collector/requests/REQ-BD-8903/complete
+Authorization: Bearer {{authToken}}
