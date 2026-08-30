@@ -2,7 +2,7 @@ const User = require('../models/User');
 const { generateToken } = require('../middleware/authMiddleware');
 
 /**
- * @desc    Register a new user / collector
+ * @desc    Register a new user / citizen / collector / admin
  * @route   POST /api/auth/register
  * @access  Public
  */
@@ -12,13 +12,20 @@ const registerUser = async (req, res) => {
       name,
       email,
       password,
-      role = 'collector',
+      role = 'citizen',
+      district = 'Dhaka',
       phone,
-      district,
       assignedDistricts,
       vehicleType,
       vehicleNumber,
     } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name, email, and password',
+      });
+    }
 
     // Check if user already exists
     const userExists = await User.findOne({ email });
@@ -35,30 +42,38 @@ const registerUser = async (req, res) => {
       email,
       password,
       role,
-      phone,
       district,
+      phone: phone || '+880 1712-345678',
       assignedDistricts: assignedDistricts || (district ? [district] : ['Dhaka', 'Gazipur']),
-      vehicleType,
-      vehicleNumber,
+      vehicleType: vehicleType || (role === 'collector' ? 'Electric Waste Van (EV-04)' : undefined),
+      vehicleNumber: vehicleNumber || (role === 'collector' ? 'Dhaka Metro-DH-11-2045' : undefined),
     });
 
     if (user) {
+      const token = generateToken(user._id, user.role);
+      const userResponse = {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        district: user.district,
+        phone: user.phone,
+        assignedDistricts: user.assignedDistricts,
+        vehicleType: user.vehicleType,
+        vehicleNumber: user.vehicleNumber,
+        rating: user.rating,
+        totalCollections: user.totalCollections,
+      };
+
       res.status(201).json({
         success: true,
-        message: 'User registered successfully',
+        message: 'Account created successfully',
+        token,
+        user: userResponse,
         data: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          phone: user.phone,
-          district: user.district,
-          assignedDistricts: user.assignedDistricts,
-          vehicleType: user.vehicleType,
-          vehicleNumber: user.vehicleNumber,
-          rating: user.rating,
-          totalCollections: user.totalCollections,
-          token: generateToken(user._id, user.role),
+          ...userResponse,
+          token,
         },
       });
     } else {
@@ -97,22 +112,30 @@ const loginUser = async (req, res) => {
 
     // Validate password using schema method
     if (user && (await user.matchPassword(password))) {
+      const token = generateToken(user._id, user.role);
+      const userResponse = {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        district: user.district,
+        phone: user.phone,
+        assignedDistricts: user.assignedDistricts,
+        vehicleType: user.vehicleType,
+        vehicleNumber: user.vehicleNumber,
+        rating: user.rating,
+        totalCollections: user.totalCollections,
+      };
+
       res.status(200).json({
         success: true,
         message: 'Login successful',
+        token,
+        user: userResponse,
         data: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          phone: user.phone,
-          district: user.district,
-          assignedDistricts: user.assignedDistricts,
-          vehicleType: user.vehicleType,
-          vehicleNumber: user.vehicleNumber,
-          rating: user.rating,
-          totalCollections: user.totalCollections,
-          token: generateToken(user._id, user.role),
+          ...userResponse,
+          token,
         },
       });
     } else {
@@ -141,6 +164,7 @@ const getMe = async (req, res) => {
     res.status(200).json({
       success: true,
       data: user,
+      user: user,
     });
   } catch (error) {
     res.status(500).json({
@@ -187,6 +211,7 @@ const updateProfile = async (req, res) => {
       message: 'Profile updated successfully',
       data: {
         _id: updatedUser._id,
+        id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
