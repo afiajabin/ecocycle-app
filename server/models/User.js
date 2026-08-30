@@ -22,17 +22,23 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'collector', 'admin'],
-      default: 'collector',
+      enum: ['citizen', 'user', 'collector', 'admin'],
+      default: 'citizen',
     },
     phone: {
       type: String,
-      default: '+880 1819-876543',
+      default: '+880 1712-345678',
     },
     district: {
       type: String,
+      required: [true, 'Please specify your district'],
       default: 'Dhaka',
     },
+    address: {
+      type: String,
+      default: 'House 42, Road 9A, Dhanmondi, Dhaka',
+    },
+    // Collector specific fields
     assignedDistricts: {
       type: [String],
       default: ['Dhaka', 'Gazipur'],
@@ -50,6 +56,15 @@ const userSchema = new mongoose.Schema(
       default: 4.9,
     },
     totalCollections: {
+      type: Number,
+      default: 0,
+    },
+    // Citizen specific stats
+    totalRecycledKg: {
+      type: Number,
+      default: 0,
+    },
+    totalRequestsCount: {
       type: Number,
       default: 0,
     },
@@ -73,7 +88,7 @@ userSchema.pre('save', async function () {
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Method to compare entered password with hashed password in database
+// Compare entered password with hashed password
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

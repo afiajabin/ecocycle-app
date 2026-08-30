@@ -10,19 +10,33 @@ dotenv.config();
 const seedDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('🌱 Connected to MongoDB for seeding...');
+    console.log('🌱 Connected to MongoDB Atlas for seeding...');
 
-    // Clear existing data
+    // Clear existing collections
     await User.deleteMany({});
     await Request.deleteMany({});
     await Facility.deleteMany({});
     console.log('🧹 Cleaned existing database records.');
 
-    // 1. Create Collector Accounts (including afiajabin12@gmail.com)
+    // 1. Create Citizen Account (Her Part)
+    const citizenUser = await User.create({
+      name: 'Sadia Sultana',
+      email: 'sadia.citizen@ecocycle.bd',
+      password: 'password123',
+      role: 'citizen',
+      phone: '+880 1712-345678',
+      district: 'Dhaka',
+      address: 'House 42, Road 9A, Dhanmondi, Dhaka - 1209',
+      totalRecycledKg: 48,
+      totalRequestsCount: 4,
+      status: 'Active',
+    });
+
+    // 2. Create Collector Accounts (Your Part)
     const afiaCollector = await User.create({
       name: 'Afia Jabin',
       email: 'afiajabin12@gmail.com',
-      password: 'password123', // Will be hashed automatically by User model pre-save hook
+      password: 'password123',
       role: 'collector',
       phone: '+880 1712-345678',
       district: 'Dhaka',
@@ -49,26 +63,23 @@ const seedDB = async () => {
       status: 'Active',
     });
 
-    const rashedulCollector = await User.create({
-      name: 'Rashedul Karim',
-      email: 'rashedul.ctg@ecocycle.bd',
+    // 3. Create Admin Account
+    const adminUser = await User.create({
+      name: 'Dr. Shahriar Rahman',
+      email: 'admin@ecocycle.bd',
       password: 'password123',
-      role: 'collector',
-      phone: '+880 1822-112233',
-      district: 'Chattogram',
-      assignedDistricts: ['Chattogram', "Cox's Bazar"],
-      vehicleType: 'Heavy EV Truck (EV-08)',
-      vehicleNumber: 'Chatto Metro-CT-09-3321',
-      rating: 4.8,
-      totalCollections: 98,
+      role: 'admin',
+      phone: '+880 1911-001122',
+      district: 'Dhaka',
       status: 'Active',
     });
 
-    console.log('👤 Collectors created successfully:');
-    console.log(`   - Email: ${afiaCollector.email} | Password: password123 | Role: ${afiaCollector.role}`);
-    console.log(`   - Email: ${kabirCollector.email} | Password: password123 | Role: ${kabirCollector.role}`);
+    console.log('👤 Users seeded:');
+    console.log(`   - Citizen:   ${citizenUser.email} (pass: password123)`);
+    console.log(`   - Collector: ${afiaCollector.email} (pass: password123)`);
+    console.log(`   - Admin:     ${adminUser.email} (pass: password123)`);
 
-    // 2. Create Facilities
+    // 4. Create Facilities
     const facilities = await Facility.insertMany([
       {
         name: 'Dhaka North Mechanical Polymer Recycling Plant',
@@ -133,17 +144,17 @@ const seedDB = async () => {
     ]);
     console.log(`🏭 ${facilities.length} Recycling Facilities seeded.`);
 
-    // 3. Create Sample Citizen Requests
+    // 5. Create Pickup Requests
     const dhakaFac = facilities[0];
-    const ctgFac = facilities[1];
 
     await Request.insertMany([
       {
         requestId: 'REQ-BD-8901',
-        userName: 'Sadia Sultana',
-        userPhone: '+880 1712-345678',
+        userId: citizenUser._id,
+        userName: citizenUser.name,
+        userPhone: citizenUser.phone,
         district: 'Dhaka',
-        address: 'House 42, Road 9A, Dhanmondi, Dhaka - 1209',
+        address: citizenUser.address,
         plasticTypes: ['PET Bottles', 'HDPE Containers'],
         estimatedKg: 12,
         verifiedKg: 12.5,
@@ -158,10 +169,11 @@ const seedDB = async () => {
       },
       {
         requestId: 'REQ-BD-8902',
-        userName: 'Imran Hossain',
-        userPhone: '+880 1711-229988',
+        userId: citizenUser._id,
+        userName: citizenUser.name,
+        userPhone: citizenUser.phone,
         district: 'Dhaka',
-        address: 'Apartment 4B, Sector 7, Uttara, Dhaka',
+        address: citizenUser.address,
         plasticTypes: ['LDPE Bags & Films', 'Mixed Plastics'],
         estimatedKg: 8,
         verifiedKg: 8.2,
@@ -176,6 +188,7 @@ const seedDB = async () => {
       },
       {
         requestId: 'REQ-BD-8903',
+        userId: citizenUser._id,
         userName: 'Farhan Mahmud',
         userPhone: '+880 1923-456789',
         district: 'Dhaka',
@@ -190,28 +203,11 @@ const seedDB = async () => {
         collectorName: null,
         facilityId: null,
         facilityName: null,
-        notes: 'Beverage bottles from community center. Stored on ground floor.',
+        notes: 'Beverage bottles from community event. Stored on ground floor.',
       },
       {
         requestId: 'REQ-BD-8904',
-        userName: 'Tasnim Jahan',
-        userPhone: '+880 1815-998877',
-        district: 'Chattogram',
-        address: 'Flat 6B, Green Valley, Nasirabad, Chattogram',
-        plasticTypes: ['HDPE Containers', 'PET Bottles'],
-        estimatedKg: 18,
-        verifiedKg: 19.0,
-        preferredDate: '2026-08-25',
-        preferredTime: 'Morning (9:00 AM - 1:00 PM)',
-        status: 'Delivered to Facility',
-        collectorId: rashedulCollector._id,
-        collectorName: rashedulCollector.name,
-        facilityId: ctgFac._id,
-        facilityName: ctgFac.name,
-        notes: 'Detergent bottles and mineral water bottles.',
-      },
-      {
-        requestId: 'REQ-BD-8905',
+        userId: citizenUser._id,
         userName: 'Tanvir Ahmed',
         userPhone: '+880 1912-334455',
         district: 'Gazipur',
@@ -226,12 +222,12 @@ const seedDB = async () => {
         collectorName: null,
         facilityId: null,
         facilityName: null,
-        notes: 'Cartons of clean sorted industrial plastics.',
+        notes: 'Clean sorted industrial plastics.',
       },
     ]);
 
     console.log('📦 Sample pickup requests seeded.');
-    console.log('\n🎉 Database seeding finished successfully!');
+    console.log('\n🎉 Unified database seeding finished successfully!');
     process.exit(0);
   } catch (error) {
     console.error('❌ Seeding error:', error);

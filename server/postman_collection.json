@@ -1,16 +1,16 @@
 {
   "info": {
-    "_postman_id": "ecocycle-collector-api-collection",
-    "name": "EcoCycle - Collector API",
-    "description": "Postman collection for EcoCycle Collector module endpoints with JWT authentication.",
+    "_postman_id": "ecocycle-unified-api-collection",
+    "name": "EcoCycle - Unified API",
+    "description": "Postman collection for EcoCycle with distinct folders for Citizen and Collector modules.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "1. Authentication",
+      "name": "1. Authentication (Common)",
       "item": [
         {
-          "name": "Register Collector",
+          "name": "Register User (Citizen / Collector)",
           "request": {
             "method": "POST",
             "header": [
@@ -21,7 +21,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Afia Jabin\",\n  \"email\": \"afiajabin12@gmail.com\",\n  \"password\": \"password123\",\n  \"role\": \"collector\",\n  \"phone\": \"+880 1712-345678\",\n  \"district\": \"Dhaka\",\n  \"assignedDistricts\": [\"Dhaka\", \"Gazipur\"],\n  \"vehicleType\": \"Electric Waste Van (EV-04)\",\n  \"vehicleNumber\": \"Dhaka Metro-DH-11-2045\"\n}"
+              "raw": "{\n  \"name\": \"Afia Jabin\",\n  \"email\": \"afiajabin12@gmail.com\",\n  \"password\": \"password123\",\n  \"role\": \"collector\",\n  \"district\": \"Dhaka\",\n  \"phone\": \"+880 1712-345678\",\n  \"assignedDistricts\": [\"Dhaka\", \"Gazipur\"],\n  \"vehicleType\": \"Electric Waste Van (EV-04)\",\n  \"vehicleNumber\": \"Dhaka Metro-DH-11-2045\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/auth/register",
@@ -31,7 +31,7 @@
           }
         },
         {
-          "name": "Login (Get JWT Token)",
+          "name": "Login Collector (Afia)",
           "event": [
             {
               "listen": "test",
@@ -39,9 +39,9 @@
                 "exec": [
                   "var jsonData = pm.response.json();",
                   "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"collector_token\", jsonData.data.token);",
                   "    pm.collectionVariables.set(\"jwt_token\", jsonData.data.token);",
-                  "    pm.environment.set(\"jwt_token\", jsonData.data.token);",
-                  "    console.log(\"Saved JWT Token to collection variables!\");",
+                  "    console.log(\"Saved Collector JWT Token\");",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -68,7 +68,43 @@
           }
         },
         {
-          "name": "Get Logged-in Profile (Me)",
+          "name": "Login Citizen (Sadia)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set(\"citizen_token\", jsonData.data.token);",
+                  "    console.log(\"Saved Citizen JWT Token\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sadia.citizen@ecocycle.bd\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile (Me)",
           "request": {
             "method": "GET",
             "header": [
@@ -87,7 +123,54 @@
       ]
     },
     {
-      "name": "2. Collector Operations",
+      "name": "2. Citizen Operations (Her Part)",
+      "item": [
+        {
+          "name": "Create Plastic Pickup Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{citizen_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plasticTypes\": [\"PET Bottles\", \"HDPE Containers\"],\n  \"estimatedKg\": 14.5,\n  \"district\": \"Dhaka\",\n  \"address\": \"House 12, Road 4, Banani, Dhaka\",\n  \"preferredDate\": \"2026-08-31\",\n  \"preferredTime\": \"Morning (9:00 AM - 1:00 PM)\",\n  \"notes\": \"Clean sorted plastic bottles placed at door.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/requests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "requests"]
+            }
+          }
+        },
+        {
+          "name": "Get My Submitted Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{citizen_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/requests/my-requests",
+              "host": ["{{base_url}}"],
+              "path": ["api", "requests", "my-requests"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Collector Operations (Your Part)",
       "item": [
         {
           "name": "Get Collector Dashboard Stats",
@@ -96,7 +179,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}"
+                "value": "Bearer {{collector_token}}"
               }
             ],
             "url": {
@@ -107,53 +190,19 @@
           }
         },
         {
-          "name": "Get District Pickup Requests",
+          "name": "Get District Pickup Requests (Queue)",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}"
+                "value": "Bearer {{collector_token}}"
               }
             ],
             "url": {
               "raw": "{{base_url}}/api/collector/requests?status=all",
               "host": ["{{base_url}}"],
-              "path": ["api", "collector", "requests"],
-              "query": [
-                {
-                  "key": "status",
-                  "value": "all",
-                  "description": "Filter by Pending, Accepted, Collected, Delivered to Facility, Completed, or all"
-                },
-                {
-                  "key": "district",
-                  "value": "Dhaka",
-                  "disabled": true
-                },
-                {
-                  "key": "search",
-                  "value": "Mirpur",
-                  "disabled": true
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Single Request by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{jwt_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/collector/requests/REQ-BD-8903",
-              "host": ["{{base_url}}"],
-              "path": ["api", "collector", "requests", "REQ-BD-8903"]
+              "path": ["api", "collector", "requests"]
             }
           }
         },
@@ -164,11 +213,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+                "value": "Bearer {{collector_token}}"
               }
             ],
             "url": {
@@ -185,7 +230,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}"
+                "value": "Bearer {{collector_token}}"
               },
               {
                 "key": "Content-Type",
@@ -210,7 +255,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}"
+                "value": "Bearer {{collector_token}}"
               },
               {
                 "key": "Content-Type",
@@ -235,7 +280,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}"
+                "value": "Bearer {{collector_token}}"
               }
             ],
             "url": {
@@ -248,7 +293,7 @@
       ]
     },
     {
-      "name": "3. Facilities",
+      "name": "4. Facilities",
       "item": [
         {
           "name": "Get All Facilities",
@@ -271,6 +316,14 @@
     },
     {
       "key": "jwt_token",
+      "value": ""
+    },
+    {
+      "key": "collector_token",
+      "value": ""
+    },
+    {
+      "key": "citizen_token",
       "value": ""
     }
   ]
