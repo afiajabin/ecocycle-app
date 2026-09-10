@@ -13,6 +13,7 @@ export default function Register() {
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
+  alert('NAZIFA-REGISTER-TEST-999');
     e.preventDefault()
 
     const formData = new FormData(e.target)
@@ -31,7 +32,7 @@ export default function Register() {
 
     try {
       const response = await fetch(
-        'http://localhost:4000/api/auth/register',
+        'http://localhost:5000/api/auth/register',
         {
           method: 'POST',
           headers: {
@@ -122,7 +123,7 @@ export default function Register() {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} autoComplete="off"> 
 
                 {/* Full Name */}
                 <div className="form-group">
@@ -178,6 +179,7 @@ export default function Register() {
                       id="register-email"
                       name="email"
                       type="email"
+                      autoComplete="new-email"
                       className="form-input"
                       placeholder="Enter your email"
                       style={{ paddingLeft: '2.75rem' }}
@@ -279,6 +281,7 @@ export default function Register() {
                         id="register-password"
                         name="password"
                         type="password"
+                        autoComplete="new-password"
                         className="form-input"
                         placeholder="Password"
                         style={{ paddingLeft: '2.75rem' }}
@@ -312,6 +315,7 @@ export default function Register() {
                         id="register-confirm-password"
                         name="confirmPassword"
                         type="password"
+                        autoComplete="new-password"
                         className="form-input"
                         placeholder="Confirm"
                         style={{ paddingLeft: '2.75rem' }}

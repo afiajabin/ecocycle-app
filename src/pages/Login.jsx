@@ -14,7 +14,7 @@ export default function Login() {
 
     try {
       const response = await fetch(
-        'http://localhost:4000/api/auth/login',
+        'http://localhost:5000/api/auth/login',
         {
           method: 'POST',
           headers: {
@@ -34,12 +34,14 @@ export default function Login() {
         return
       }
 
-      if (!data.token || !data.user) {
-        alert('Invalid login response from server')
-        return
-      }
+       const userData = data.data
 
-      const backendRole = data.user.role
+if (!userData || !userData.token) {
+  alert('Invalid login response from server')
+  return
+}
+
+const backendRole = userData.role
 
       let frontendRole
 
@@ -56,12 +58,12 @@ export default function Login() {
         return
       }
 
-      const user = {
-        ...data.user,
-        role: frontendRole,
-      }
+       const user = {
+  ...userData,
+  role: frontendRole,
+}
 
-      localStorage.setItem('token', data.token)
+localStorage.setItem('token', userData.token)
       localStorage.setItem('user', JSON.stringify(user))
       localStorage.setItem('ecocycle-active-role', frontendRole)
 
