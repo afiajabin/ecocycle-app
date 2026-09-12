@@ -34,14 +34,15 @@ export default function Login() {
         return
       }
 
-       const userData = data.data
+      const token = data.token || data.data?.token
+      const userData = data.user || data.data
 
-if (!userData || !userData.token) {
-  alert('Invalid login response from server')
-  return
-}
+      if (!userData || !token) {
+        alert('Invalid login response from server')
+        return
+      }
 
-const backendRole = userData.role
+      const backendRole = userData.role
 
       let frontendRole
 
@@ -58,12 +59,12 @@ const backendRole = userData.role
         return
       }
 
-       const user = {
-  ...userData,
-  role: frontendRole,
-}
+      const user = {
+        ...userData,
+        role: frontendRole,
+      }
 
-localStorage.setItem('token', userData.token)
+      localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
       localStorage.setItem('ecocycle-active-role', frontendRole)
 

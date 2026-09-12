@@ -13,7 +13,6 @@ export default function Register() {
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
-  alert('NAZIFA-REGISTER-TEST-999');
     e.preventDefault()
 
     const formData = new FormData(e.target)
