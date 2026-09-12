@@ -1,48 +1,94 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthRole } from '../../context/AuthRoleContext'
-import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
+import { getMyProfile, updateMyProfile, logoutUser } from '../../services/api'
 import { 
   Truck, 
-  User, 
   MapPin, 
   Phone, 
-  Mail, 
-  Award, 
   Star, 
-  CheckCircle2, 
   ShieldCheck,
   Save,
-  Calendar
+  LogOut,
+  RefreshCw
 } from 'lucide-react'
 
 export default function CollectorProfile() {
   const { userProfile, updateCurrentUserProfile } = useAuthRole()
-  const { requests } = useData()
   const { addToast } = useToast()
 
   const [name, setName] = useState(userProfile.name || '')
   const [phone, setPhone] = useState(userProfile.phone || '')
+  const [district, setDistrict] = useState(userProfile.district || 'Dhaka')
   const [vehicleNumber, setVehicleNumber] = useState(userProfile.vehicleNumber || '')
   const [vehicleType, setVehicleType] = useState(userProfile.vehicleType || '')
+  const [assignedDistricts, setAssignedDistricts] = useState(userProfile.assignedDistricts || ['Dhaka', 'Gazipur'])
+  const [totalCollections, setTotalCollections] = useState(userProfile.totalCollections || 0)
+  const [rating, setRating] = useState(userProfile.rating || 4.9)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const assignedDistricts = userProfile.assignedDistricts || [userProfile.district || 'Dhaka']
+  const fetchProfile = async () => {
+    try {
+      setLoading(true)
+      const res = await getMyProfile()
+      if (res.success && res.data) {
+        const u = res.data
+        setName(u.name || '')
+        setPhone(u.phone || '')
+        setDistrict(u.district || 'Dhaka')
+        setVehicleNumber(u.vehicleNumber || '')
+        setVehicleType(u.vehicleType || '')
+        setAssignedDistricts(u.assignedDistricts || [u.district || 'Dhaka'])
+        setTotalCollections(u.totalCollections || 0)
+        setRating(u.rating || 4.9)
+      }
+    } catch (err) {
+      console.error('Error fetching collector profile:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const completedPickups = requests.filter(r => 
-    (r.collectorId === userProfile.id || r.collectorName === userProfile.name) && 
-    (r.status === 'Completed' || r.status === 'Delivered to Facility')
-  ).length
+  useEffect(() => {
+    fetchProfile()
+  }, [])
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault()
-    updateCurrentUserProfile({
-      name,
-      phone,
-      vehicleNumber,
-      vehicleType
-    })
-    addToast('Collector operational profile updated!', 'success')
+    try {
+      setSaving(true)
+      const res = await updateMyProfile({
+        name,
+        phone,
+        district,
+        vehicleNumber,
+        vehicleType,
+      })
+
+      if (res.success) {
+        updateCurrentUserProfile({
+          name,
+          phone,
+          district,
+          vehicleNumber,
+          vehicleType,
+        })
+        addToast('Collector operational profile updated successfully!', 'success')
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to save profile', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    if (window.confirm('Are you sure you want to sign out from Collector portal?')) {
+      await logoutUser()
+      window.location.href = '/login'
+    }
   }
 
   return (
@@ -56,13 +102,39 @@ export default function CollectorProfile() {
         </div>
 
         <div className="section-header" style={{ textAlign: 'left', margin: '0 0 2.5rem 0' }}>
-          <span className="section-tag">
-            <Truck size={14} /> Field Logistics Profile
-          </span>
-          <h1 className="section-title">Collector Identification & Fleet Profile</h1>
-          <p className="section-desc">
-            Manage your registered contact details, vehicle registration ID, and view your district jurisdiction authorization.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <span className="section-tag">
+                <Truck size={14} /> Field Logistics Profile
+              </span>
+              <h1 className="section-title">Collector Identification & Fleet Profile</h1>
+              <p className="section-desc">
+                Manage your registered contact details, vehicle registration ID, and view your district jurisdiction authorization.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={fetchProfile}
+                disabled={loading}
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                <span>Refresh</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                style={{ color: 'var(--error, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                onClick={handleSignOut}
+              >
+                <LogOut size={14} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Collector ID Banner */}
@@ -80,7 +152,7 @@ export default function CollectorProfile() {
               fontSize: '1.5rem',
               fontWeight: 800
             }}>
-              {userProfile.avatar || 'KH'}
+              {name ? name.slice(0, 2).toUpperCase() : 'CO'}
             </div>
             <div>
               <div style={{ fontSize: '0.82rem', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -88,20 +160,20 @@ export default function CollectorProfile() {
               </div>
               <h2 style={{ color: '#ffffff', fontSize: '1.6rem', marginTop: '0.2rem' }}>{name}</h2>
               <div style={{ fontSize: '0.88rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.2rem' }}>
-                <span>ID: <strong>{userProfile.id}</strong></span>
+                <span>District: <strong>{district}</strong></span>
                 <span>•</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <Star size={14} fill="#facc15" color="#facc15" /> {userProfile.rating || 4.9} Rating
+                  <Star size={14} fill="#facc15" color="#facc15" /> {rating} Rating
                 </span>
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>Completed Pickups</div>
+              <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>Total Collections</div>
               <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: 800 }}>
-                {completedPickups}
+                {totalCollections}
               </div>
             </div>
             <div>
@@ -136,7 +208,7 @@ export default function CollectorProfile() {
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Vehicle & Contact Details</h2>
 
           <form onSubmit={handleSave}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
               <div className="form-group">
                 <label className="form-label">Collector Name</label>
                 <input
@@ -160,7 +232,7 @@ export default function CollectorProfile() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1rem' }}>
               <div className="form-group">
                 <label className="form-label">Assigned Vehicle Type</label>
                 <input
@@ -185,9 +257,9 @@ export default function CollectorProfile() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary" disabled={saving}>
                 <Save size={16} />
-                <span>Save Collector Profile</span>
+                <span>{saving ? 'Saving...' : 'Save Collector Profile'}</span>
               </button>
             </div>
           </form>

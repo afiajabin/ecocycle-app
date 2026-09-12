@@ -1,30 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthRole } from '../../context/AuthRoleContext'
-import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import StatusBadge from '../../components/StatusBadge'
 import RequestStepTracker from '../../components/RequestStepTracker'
+import {
+  getDistrictRequests,
+  getFacilities,
+  acceptRequest,
+  collectRequest,
+  deliverToFacility,
+  completeRequest,
+} from '../../services/api'
 import { 
   ListOrdered, 
   MapPin, 
   Phone, 
-  Calendar, 
-  Clock, 
   CheckCircle2, 
   Truck, 
   Building, 
-  Layers, 
   Search, 
-  ArrowRight,
   ShieldCheck,
   Scale,
+  RefreshCw,
   X
 } from 'lucide-react'
 
 export default function CollectorRequests() {
   const { userProfile } = useAuthRole()
-  const { requests, facilities, updateRequestStatus } = useData()
   const { addToast } = useToast()
 
   const assignedDistricts = userProfile.assignedDistricts || [userProfile.district || 'Dhaka']
@@ -32,88 +35,139 @@ export default function CollectorRequests() {
   const [activeStatusTab, setActiveStatusTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
 
+  const [requests, setRequests] = useState([])
+  const [facilities, setFacilities] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
   // Modals state
   const [weightModalReq, setWeightModalReq] = useState(null)
   const [verifiedWeightInput, setVerifiedWeightInput] = useState('')
+  const [submittingModal, setSubmittingModal] = useState(false)
 
   const [deliveryModalReq, setDeliveryModalReq] = useState(null)
   const [selectedFacilityId, setSelectedFacilityId] = useState('')
 
-  // Requests in collector's districts
-  const districtRequests = requests.filter(r => assignedDistricts.includes(r.district))
+  const fetchRequestsAndFacilities = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const [reqsRes, facsRes] = await Promise.all([
+        getDistrictRequests({
+          status: activeStatusTab,
+          district: activeDistrictFilter,
+          search: searchQuery,
+        }),
+        getFacilities(),
+      ])
+
+      if (reqsRes.success) {
+        setRequests(reqsRes.data)
+      }
+      if (facsRes.success) {
+        setFacilities(facsRes.data)
+      }
+    } catch (err) {
+      console.error('Error fetching collector requests:', err)
+      setError(err.message || 'Failed to load requests from server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRequestsAndFacilities()
+  }, [activeStatusTab, activeDistrictFilter, searchQuery])
 
   const tabs = [
-    { id: 'all', label: 'All District Requests', count: districtRequests.length },
-    { id: 'Pending', label: 'Pending Acceptance', count: districtRequests.filter(r => r.status === 'Pending').length },
-    { id: 'Accepted', label: 'Accepted (To Collect)', count: districtRequests.filter(r => r.status === 'Accepted').length },
-    { id: 'Collected', label: 'Collected (In Transit)', count: districtRequests.filter(r => r.status === 'Collected').length },
-    { id: 'Delivered to Facility', label: 'At Facility', count: districtRequests.filter(r => r.status === 'Delivered to Facility').length },
-    { id: 'Completed', label: 'Completed', count: districtRequests.filter(r => r.status === 'Completed').length }
+    { id: 'all', label: 'All District Requests', count: requests.length },
+    { id: 'Pending', label: 'Pending Acceptance', count: requests.filter(r => r.status === 'Pending').length },
+    { id: 'Accepted', label: 'Accepted (To Collect)', count: requests.filter(r => r.status === 'Accepted').length },
+    { id: 'Collected', label: 'Collected (In Transit)', count: requests.filter(r => r.status === 'Collected').length },
+    { id: 'Delivered to Facility', label: 'At Facility', count: requests.filter(r => r.status === 'Delivered to Facility').length },
+    { id: 'Completed', label: 'Completed', count: requests.filter(r => r.status === 'Completed').length }
   ]
 
-  const filteredRequests = districtRequests.filter(req => {
-    const matchesDistrict = activeDistrictFilter === 'all' || req.district === activeDistrictFilter
-    const matchesStatus = activeStatusTab === 'all' || req.status === activeStatusTab
-    const matchesSearch = req.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          req.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          req.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          req.plasticTypes.some(p => p.toLowerCase().includes(searchQuery.toLowerCase()))
-    return matchesDistrict && matchesStatus && matchesSearch
-  })
-
-  // Status progression handlers
-  const handleAcceptRequest = (req) => {
-    updateRequestStatus(req.id, 'Accepted', {
-      collectorId: userProfile.id,
-      collectorName: userProfile.name
-    })
-    addToast(`Accepted pickup request #${req.id} in ${req.district}. Citizen notified.`, 'success')
+  // Status progression handlers calling backend
+  const handleAcceptRequest = async (req) => {
+    try {
+      const res = await acceptRequest(req._id || req.requestId)
+      if (res.success) {
+        addToast(`Accepted pickup request #${req.requestId} in ${req.district}. Citizen notified.`, 'success')
+        fetchRequestsAndFacilities()
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to accept request', 'error')
+    }
   }
 
   const openCollectWeightModal = (req) => {
     setWeightModalReq(req)
-    setVerifiedWeightInput(req.estimatedKg.toString())
+    setVerifiedWeightInput(req.estimatedKg ? req.estimatedKg.toString() : '5')
   }
 
-  const handleConfirmCollected = (e) => {
+  const handleConfirmCollected = async (e) => {
     e.preventDefault()
     if (!verifiedWeightInput || Number(verifiedWeightInput) <= 0) {
       addToast('Please enter a valid verified weight in kg.', 'warning')
       return
     }
 
-    const weightNum = Number(verifiedWeightInput)
-    updateRequestStatus(weightModalReq.id, 'Collected', {
-      verifiedKg: weightNum,
-      collectorId: userProfile.id,
-      collectorName: userProfile.name
-    })
+    try {
+      setSubmittingModal(true)
+      const weightNum = Number(verifiedWeightInput)
+      const res = await collectRequest(weightModalReq._id || weightModalReq.requestId, weightNum)
 
-    setWeightModalReq(null)
-    addToast(`Marked #${weightModalReq.id} as Collected (${weightNum} kg verified). Ready for facility transport.`, 'success')
+      if (res.success) {
+        setWeightModalReq(null)
+        addToast(`Marked #${weightModalReq.requestId} as Collected (${weightNum} kg verified). Ready for facility transport.`, 'success')
+        fetchRequestsAndFacilities()
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to update weight', 'error')
+    } finally {
+      setSubmittingModal(false)
+    }
   }
 
   const openDeliveryModal = (req) => {
     setDeliveryModalReq(req)
-    setSelectedFacilityId(facilities[0]?.id || '')
+    setSelectedFacilityId(facilities[0]?._id || facilities[0]?.id || '')
   }
 
-  const handleConfirmDelivered = (e) => {
+  const handleConfirmDelivered = async (e) => {
     e.preventDefault()
-    const targetFacility = facilities.find(f => f.id === selectedFacilityId) || facilities[0]
-    
-    updateRequestStatus(deliveryModalReq.id, 'Delivered to Facility', {
-      facilityId: targetFacility.id,
-      facilityName: targetFacility.name
-    })
+    if (!selectedFacilityId) {
+      addToast('Please select a facility.', 'warning')
+      return
+    }
 
-    setDeliveryModalReq(null)
-    addToast(`Marked #${deliveryModalReq.id} as Delivered to ${targetFacility.name}!`, 'success')
+    try {
+      setSubmittingModal(true)
+      const res = await deliverToFacility(deliveryModalReq._id || deliveryModalReq.requestId, selectedFacilityId)
+
+      if (res.success) {
+        setDeliveryModalReq(null)
+        addToast(`Marked #${deliveryModalReq.requestId} as Delivered to facility!`, 'success')
+        fetchRequestsAndFacilities()
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to deliver to facility', 'error')
+    } finally {
+      setSubmittingModal(false)
+    }
   }
 
-  const handleMarkCompleted = (req) => {
-    updateRequestStatus(req.id, 'Completed')
-    addToast(`Request #${req.id} finalized and confirmed recycled!`, 'success')
+  const handleMarkCompleted = async (req) => {
+    try {
+      const res = await completeRequest(req._id || req.requestId)
+      if (res.success) {
+        addToast(`Request #${req.requestId} finalized and confirmed recycled!`, 'success')
+        fetchRequestsAndFacilities()
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to complete request', 'error')
+    }
   }
 
   return (
@@ -136,11 +190,30 @@ export default function CollectorRequests() {
             </span>
           </div>
 
-          <h1 className="section-title">District Plastic Pickup Requests</h1>
-          <p className="section-desc">
-            View, accept, and manage the full collection lifecycle for citizen pickup requests within your assigned territory.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h1 className="section-title">District Plastic Pickup Requests</h1>
+              <p className="section-desc">
+                View, accept, and manage the full collection lifecycle for citizen pickup requests within your assigned territory.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={fetchRequestsAndFacilities}
+              disabled={loading}
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="card" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b', marginBottom: '2rem', padding: '1rem' }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
 
         {/* Toolbar: Status Tabs & Search */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
@@ -197,7 +270,11 @@ export default function CollectorRequests() {
         </div>
 
         {/* Requests List */}
-        {filteredRequests.length === 0 ? (
+        {loading ? (
+          <div className="card" style={{ textAlign: 'center', padding: '3.5rem' }}>
+            <p style={{ color: 'var(--text-secondary)' }}>Loading live pickup requests...</p>
+          </div>
+        ) : requests.length === 0 ? (
           <div className="card" style={{ textAlign: 'center', padding: '3.5rem', background: 'var(--bg-surface-elevated)' }}>
             <h3>No district requests found</h3>
             <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
@@ -206,19 +283,22 @@ export default function CollectorRequests() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {filteredRequests.map(req => (
-              <div key={req.id} className="card" style={{ padding: '2rem' }}>
+            {requests.map(req => (
+              <div key={req._id || req.requestId} className="card" style={{ padding: '2rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
-                      <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Request #{req.id}</h2>
+                      <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Request #{req.requestId}</h2>
+                      <StatusBadge status={req.status} />
                       <span className="badge badge-success">{req.district}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        Preferred: {req.preferredDate} ({req.preferredTime})
-                      </span>
+                      {req.collectorName && (
+                        <span className="badge badge-accent" style={{ fontSize: '0.75rem' }}>
+                          Collector: {req.collectorName}
+                        </span>
+                      )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.88rem', marginTop: '0.75rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', fontSize: '0.88rem', marginTop: '0.75rem' }}>
                       <div>
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700 }}>Citizen Details</div>
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{req.userName}</div>
@@ -237,13 +317,18 @@ export default function CollectorRequests() {
 
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
                       <span className="badge badge-accent">
-                        Est: {req.estimatedKg} kg {req.verifiedKg ? `• Verified: ${req.verifiedKg} kg` : ''}
+                        Est: {req.estimatedKg} kg {req.verifiedKg ? `• Scale Verified: ${req.verifiedKg} kg` : ''}
                       </span>
-                      {req.plasticTypes.map(p => (
+                      {(req.plasticTypes || []).map(p => (
                         <span key={p} className="badge badge-success" style={{ fontSize: '0.72rem' }}>
                           {p}
                         </span>
                       ))}
+                      {req.facilityName && (
+                        <span className="badge badge-info" style={{ fontSize: '0.72rem' }}>
+                          Facility: {req.facilityName}
+                        </span>
+                      )}
                     </div>
 
                     {req.notes && (
@@ -306,7 +391,7 @@ export default function CollectorRequests() {
 
                       {req.status === 'Completed' && (
                         <span className="badge badge-success" style={{ padding: '0.4rem 0.75rem' }}>
-                          <CheckCircle2 size={14} /> Order Finalized
+                          <CheckCircle2 size={14} /> Recycling Complete
                         </span>
                       )}
                     </div>
@@ -325,9 +410,9 @@ export default function CollectorRequests() {
 
       {/* Modal 1: Verify Weight on Collection */}
       {weightModalReq && (
-        <div className="modal-overlay" onClick={() => setWeightModalReq(null)}>
+        <div className="modal-overlay" onClick={() => !submittingModal && setWeightModalReq(null)}>
           <div className="modal-content" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setWeightModalReq(null)}>
+            <button className="modal-close" onClick={() => !submittingModal && setWeightModalReq(null)}>
               <X size={18} />
             </button>
 
@@ -336,7 +421,7 @@ export default function CollectorRequests() {
               <span>Verify Collected Weight</span>
             </h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              Weigh the plastic batch for Request <strong>#{weightModalReq.id}</strong> ({weightModalReq.userName}, {weightModalReq.district}) using the hanging digital scale:
+              Weigh the plastic batch for Request <strong>#{weightModalReq.requestId}</strong> ({weightModalReq.userName}, {weightModalReq.district}) using the hanging digital scale:
             </p>
 
             <form onSubmit={handleConfirmCollected}>
@@ -345,8 +430,8 @@ export default function CollectorRequests() {
                 <input
                   type="number"
                   step="0.1"
-                  min="0.5"
-                  max="500"
+                  min="0.1"
+                  max="5000"
                   className="form-input"
                   value={verifiedWeightInput}
                   onChange={e => setVerifiedWeightInput(e.target.value)}
@@ -364,6 +449,7 @@ export default function CollectorRequests() {
                   className="btn btn-secondary"
                   style={{ flex: 1 }}
                   onClick={() => setWeightModalReq(null)}
+                  disabled={submittingModal}
                 >
                   Cancel
                 </button>
@@ -371,9 +457,10 @@ export default function CollectorRequests() {
                   type="submit"
                   className="btn btn-primary"
                   style={{ flex: 1.5 }}
+                  disabled={submittingModal}
                 >
                   <CheckCircle2 size={16} />
-                  <span>Confirm Collected</span>
+                  <span>{submittingModal ? 'Saving...' : 'Confirm Collected'}</span>
                 </button>
               </div>
             </form>
@@ -383,9 +470,9 @@ export default function CollectorRequests() {
 
       {/* Modal 2: Deliver to Authorized Facility */}
       {deliveryModalReq && (
-        <div className="modal-overlay" onClick={() => setDeliveryModalReq(null)}>
+        <div className="modal-overlay" onClick={() => !submittingModal && setDeliveryModalReq(null)}>
           <div className="modal-content" style={{ maxWidth: '540px' }} onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setDeliveryModalReq(null)}>
+            <button className="modal-close" onClick={() => !submittingModal && setDeliveryModalReq(null)}>
               <X size={18} />
             </button>
 
@@ -394,7 +481,7 @@ export default function CollectorRequests() {
               <span>Select Delivery Facility</span>
             </h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              Confirm destination facility for Request <strong>#{deliveryModalReq.id}</strong> ({deliveryModalReq.verifiedKg || deliveryModalReq.estimatedKg} kg of {deliveryModalReq.plasticTypes.join(', ')}):
+              Confirm destination facility for Request <strong>#{deliveryModalReq.requestId}</strong> ({deliveryModalReq.verifiedKg || deliveryModalReq.estimatedKg} kg of {(deliveryModalReq.plasticTypes || []).join(', ')}):
             </p>
 
             <form onSubmit={handleConfirmDelivered}>
@@ -407,7 +494,7 @@ export default function CollectorRequests() {
                   required
                 >
                   {facilities.map(fac => (
-                    <option key={fac.id} value={fac.id}>
+                    <option key={fac._id || fac.id} value={fac._id || fac.id}>
                       {fac.name} ({fac.district} - {fac.type})
                     </option>
                   ))}
@@ -423,7 +510,7 @@ export default function CollectorRequests() {
                 margin: '1.25rem 0'
               }}>
                 <ShieldCheck size={16} color="var(--primary)" style={{ display: 'inline', marginRight: 4 }} />
-                <span>The facility gate will receive this batch into their official processing inventory ledger.</span>
+                <span>The facility gate will receive this batch into their official processing inventory ledger in MongoDB.</span>
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -432,6 +519,7 @@ export default function CollectorRequests() {
                   className="btn btn-secondary"
                   style={{ flex: 1 }}
                   onClick={() => setDeliveryModalReq(null)}
+                  disabled={submittingModal}
                 >
                   Cancel
                 </button>
@@ -439,9 +527,10 @@ export default function CollectorRequests() {
                   type="submit"
                   className="btn btn-primary"
                   style={{ flex: 1.5, background: 'hsl(280, 70%, 42%)', borderColor: 'hsl(280, 70%, 42%)' }}
+                  disabled={submittingModal}
                 >
                   <Building size={16} />
-                  <span>Confirm Plant Delivery</span>
+                  <span>{submittingModal ? 'Delivering...' : 'Confirm Plant Delivery'}</span>
                 </button>
               </div>
             </form>

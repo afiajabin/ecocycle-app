@@ -232,9 +232,23 @@ const updateProfile = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Logout user (confirms sign out)
+ * @route   POST /api/auth/logout
+ * @access  Public / Private
+ */
+const logoutUser = async (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully',
+  });
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getMe,
   updateProfile,
+  logoutUser,
 };
+

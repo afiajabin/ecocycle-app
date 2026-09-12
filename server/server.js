@@ -19,6 +19,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/collector', require('./routes/collectorRoutes'));
 app.use('/api/requests', require('./routes/requestRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/facilities', require('./routes/facilityRoutes'));
 
 // Root Health Check Route
@@ -27,9 +28,10 @@ app.get('/', (req, res) => {
     success: true,
     message: '🌱 EcoCycle Unified Backend API is running successfully!',
     endpoints: {
-      auth: '/api/auth (Login/Register for Citizen, Collector, Admin)',
+      auth: '/api/auth (Login/Register/Logout for Citizen, Collector, Admin)',
       citizenRequests: '/api/requests (Submit and track pickup requests)',
       collectorOperations: '/api/collector (District pickup queue, scale weighing, facility deliveries, stats)',
+      adminOperations: '/api/admin (System stats, users, collectors, requests, facilities)',
       recyclingFacilities: '/api/facilities (Recycling centers)',
     },
   });

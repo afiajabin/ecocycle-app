@@ -1,28 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
 import StatusBadge from '../../components/StatusBadge'
 import RequestStepTracker from '../../components/RequestStepTracker'
+import {
+  getAdminRequests,
+  getAdminCollectors,
+  assignRequestCollector,
+  deleteAdminRequest,
+} from '../../services/api'
 import { 
   ListOrdered, 
   Search, 
-  MapPin, 
   Trash2, 
   UserCheck, 
-  Building, 
   Eye, 
-  Calendar, 
-  Layers, 
-  CheckCircle2, 
-  XCircle,
-  X,
-  AlertTriangle
+  RefreshCw,
+  X
 } from 'lucide-react'
 
 export default function AdminRequests() {
-  const { requests, collectors, assignCollectorToRequest, deleteRequest, divisions } = useData()
   const { addToast } = useToast()
+
+  const [requests, setRequests] = useState([])
+  const [collectors, setCollectors] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const [searchQuery, setSearchQuery] = useState('')
   const [districtFilter, setDistrictFilter] = useState('all')
@@ -30,39 +33,81 @@ export default function AdminRequests() {
 
   const [assignModalReq, setAssignModalReq] = useState(null)
   const [selectedCollectorId, setSelectedCollectorId] = useState('')
+  const [assigning, setAssigning] = useState(false)
 
-  const [deleteModalId, setDeleteModalId] = useState(null)
+  const [deleteModalReq, setDeleteModalReq] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const [detailsModalReq, setDetailsModalReq] = useState(null)
 
-  const filteredRequests = requests.filter(req => {
-    const matchesDistrict = districtFilter === 'all' || req.district === districtFilter
-    const matchesStatus = statusFilter === 'all' || req.status === statusFilter
-    const matchesSearch = req.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          req.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          req.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          req.plasticTypes.some(p => p.toLowerCase().includes(searchQuery.toLowerCase()))
-    return matchesDistrict && matchesStatus && matchesSearch
-  })
+  const fetchRequestsAndCollectors = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const [reqsRes, colsRes] = await Promise.all([
+        getAdminRequests({
+          status: statusFilter,
+          district: districtFilter,
+          search: searchQuery,
+        }),
+        getAdminCollectors(),
+      ])
+
+      if (reqsRes.success) setRequests(reqsRes.data)
+      if (colsRes.success) setCollectors(colsRes.data)
+    } catch (err) {
+      console.error('Failed to load admin requests:', err)
+      setError(err.message || 'Error loading requests from server')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRequestsAndCollectors()
+  }, [statusFilter, districtFilter, searchQuery])
 
   const openAssignModal = (req) => {
     setAssignModalReq(req)
-    // Find a collector already assigned to this district if possible
-    const districtCollector = collectors.find(c => c.assignedDistricts.includes(req.district))
-    setSelectedCollectorId(districtCollector ? districtCollector.id : collectors[0]?.id || '')
+    const districtCollector = collectors.find(c => (c.assignedDistricts || []).includes(req.district))
+    setSelectedCollectorId(districtCollector ? (districtCollector._id || districtCollector.id) : (collectors[0]?._id || collectors[0]?.id || ''))
   }
 
-  const handleConfirmAssign = (e) => {
+  const handleConfirmAssign = async (e) => {
     e.preventDefault()
-    assignCollectorToRequest(assignModalReq.id, selectedCollectorId)
-    const colObj = collectors.find(c => c.id === selectedCollectorId)
-    setAssignModalReq(null)
-    addToast(`Assigned Request #${assignModalReq.id} to collector ${colObj?.name || selectedCollectorId}!`, 'success')
+    if (!selectedCollectorId) {
+      addToast('Please select a collector', 'warning')
+      return
+    }
+
+    try {
+      setAssigning(true)
+      const res = await assignRequestCollector(assignModalReq._id || assignModalReq.requestId, selectedCollectorId)
+      if (res.success) {
+        addToast(`Assigned collector to Request #${assignModalReq.requestId}!`, 'success')
+        setAssignModalReq(null)
+        fetchRequestsAndCollectors()
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to assign collector', 'error')
+    } finally {
+      setAssigning(false)
+    }
   }
 
-  const handleConfirmDelete = (id) => {
-    deleteRequest(id)
-    setDeleteModalId(null)
-    addToast(`Deleted request #${id} from system records.`, 'info')
+  const handleConfirmDelete = async (req) => {
+    try {
+      setDeleting(true)
+      const res = await deleteAdminRequest(req._id || req.requestId)
+      if (res.success) {
+        addToast(`Deleted request #${req.requestId} from system records.`, 'info')
+        setDeleteModalReq(null)
+        fetchRequestsAndCollectors()
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to delete request', 'error')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -76,14 +121,34 @@ export default function AdminRequests() {
         </div>
 
         <div className="section-header" style={{ textAlign: 'left', margin: '0 0 2.5rem 0' }}>
-          <span className="section-tag">
-            <ListOrdered size={14} /> Master Logistics Ledger
-          </span>
-          <h1 className="section-title">All Nationwide Pickup Requests</h1>
-          <p className="section-desc">
-            Monitor, assign collectors, and manage lifecycle status for all plastic waste collections submitted across Bangladesh.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <span className="section-tag">
+                <ListOrdered size={14} /> Master Logistics Ledger
+              </span>
+              <h1 className="section-title">All Nationwide Pickup Requests</h1>
+              <p className="section-desc">
+                Monitor, assign collectors, and manage lifecycle status for all plastic waste collections submitted across Bangladesh.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={fetchRequestsAndCollectors}
+              disabled={loading}
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="card" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b', marginBottom: '1.5rem', padding: '1rem' }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
 
         {/* Filters Toolbar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.75rem' }}>
@@ -107,13 +172,15 @@ export default function AdminRequests() {
               onChange={e => setDistrictFilter(e.target.value)}
             >
               <option value="all">All Districts</option>
-              {Object.entries(divisions).map(([divName, distList]) => (
-                <optgroup key={divName} label={divName}>
-                  {distList.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </optgroup>
-              ))}
+              <option value="Dhaka">Dhaka</option>
+              <option value="Gazipur">Gazipur</option>
+              <option value="Chattogram">Chattogram</option>
+              <option value="Sylhet">Sylhet</option>
+              <option value="Rajshahi">Rajshahi</option>
+              <option value="Khulna">Khulna</option>
+              <option value="Barishal">Barishal</option>
+              <option value="Rangpur">Rangpur</option>
+              <option value="Mymensingh">Mymensingh</option>
             </select>
 
             {/* Status Filter */}
@@ -134,7 +201,7 @@ export default function AdminRequests() {
           </div>
 
           <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-            Showing <strong>{filteredRequests.length}</strong> of {requests.length} requests
+            Showing <strong>{requests.length}</strong> requests
           </div>
         </div>
 
@@ -153,83 +220,94 @@ export default function AdminRequests() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRequests.map(req => (
-                  <tr key={req.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '1rem 1.25rem' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>#{req.id}</div>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                        {req.userName} ({req.userPhone})
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                        {req.preferredDate}
-                      </div>
-                    </td>
-
-                    <td style={{ padding: '1rem 1.25rem' }}>
-                      <span className="badge badge-success" style={{ marginBottom: '0.2rem' }}>{req.district}</span>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{req.address}</div>
-                    </td>
-
-                    <td style={{ padding: '1rem 1.25rem' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                        ~{req.estimatedKg} kg {req.verifiedKg ? `(Verified: ${req.verifiedKg} kg)` : ''}
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        {req.plasticTypes.join(', ')}
-                      </div>
-                    </td>
-
-                    <td style={{ padding: '1rem 1.25rem' }}>
-                      {req.collectorName ? (
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <UserCheck size={14} color="var(--primary)" />
-                          <span>{req.collectorName}</span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '0.82rem', color: 'var(--warm-accent)', fontWeight: 600 }}>
-                          Unassigned
-                        </span>
-                      )}
-                    </td>
-
-                    <td style={{ padding: '1rem 1.25rem' }}>
-                      <StatusBadge status={req.status} size="sm" />
-                    </td>
-
-                    <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setDetailsModalReq(req)}
-                          title="View audit details"
-                        >
-                          <Eye size={14} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => openAssignModal(req)}
-                          title="Assign or reassign collector"
-                        >
-                          <UserCheck size={14} />
-                          <span>Assign</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-sm"
-                          style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                          onClick={() => setDeleteModalId(req.id)}
-                          title="Delete invalid or duplicate request"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      Loading requests...
                     </td>
                   </tr>
-                ))}
+                ) : requests.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      No pickup requests found.
+                    </td>
+                  </tr>
+                ) : (
+                  requests.map(req => (
+                    <tr key={req._id || req.requestId} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>#{req.requestId}</div>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          {req.userName} ({req.userPhone})
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        <span className="badge badge-success" style={{ marginBottom: '0.2rem' }}>{req.district}</span>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{req.address}</div>
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                          ~{req.estimatedKg} kg {req.verifiedKg ? `(Verified: ${req.verifiedKg} kg)` : ''}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {(req.plasticTypes || []).join(', ')}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        {req.collectorName ? (
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <UserCheck size={14} color="var(--primary)" />
+                            <span>{req.collectorName}</span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.82rem', color: 'var(--warm-accent, #d97706)', fontWeight: 600 }}>
+                            Unassigned
+                          </span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        <StatusBadge status={req.status} size="sm" />
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setDetailsModalReq(req)}
+                            title="View audit details"
+                          >
+                            <Eye size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => openAssignModal(req)}
+                            title="Assign or reassign collector"
+                          >
+                            <UserCheck size={14} />
+                            <span>Assign</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            style={{ color: 'var(--error, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                            onClick={() => setDeleteModalReq(req)}
+                            title="Delete request record"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -238,15 +316,15 @@ export default function AdminRequests() {
 
       {/* Modal 1: Assign Collector */}
       {assignModalReq && (
-        <div className="modal-overlay" onClick={() => setAssignModalReq(null)}>
+        <div className="modal-overlay" onClick={() => !assigning && setAssignModalReq(null)}>
           <div className="modal-content" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setAssignModalReq(null)}>
+            <button className="modal-close" onClick={() => !assigning && setAssignModalReq(null)}>
               <X size={18} />
             </button>
 
             <h2 style={{ fontSize: '1.3rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <UserCheck size={22} color="var(--primary)" />
-              <span>Assign Collector: #{assignModalReq.id}</span>
+              <span>Assign Collector: #{assignModalReq.requestId}</span>
             </h2>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
               District: <strong>{assignModalReq.district}</strong> • Citizen: {assignModalReq.userName} ({assignModalReq.estimatedKg} kg)
@@ -262,10 +340,10 @@ export default function AdminRequests() {
                   required
                 >
                   {collectors.map(c => {
-                    const isDistrictMatch = c.assignedDistricts.includes(assignModalReq.district)
+                    const isDistrictMatch = (c.assignedDistricts || []).includes(assignModalReq.district)
                     return (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.assignedDistricts.join(', ')}) {isDistrictMatch ? '★ District Match' : ''}
+                      <option key={c._id || c.id} value={c._id || c.id}>
+                        {c.name} ({(c.assignedDistricts || []).join(', ')}) {isDistrictMatch ? '★ District Match' : ''}
                       </option>
                     )
                   })}
@@ -278,6 +356,7 @@ export default function AdminRequests() {
                   className="btn btn-secondary"
                   style={{ flex: 1 }}
                   onClick={() => setAssignModalReq(null)}
+                  disabled={assigning}
                 >
                   Cancel
                 </button>
@@ -285,8 +364,9 @@ export default function AdminRequests() {
                   type="submit"
                   className="btn btn-primary"
                   style={{ flex: 1.5 }}
+                  disabled={assigning}
                 >
-                  Confirm Assignment
+                  {assigning ? 'Assigning...' : 'Confirm Assignment'}
                 </button>
               </div>
             </form>
@@ -295,31 +375,33 @@ export default function AdminRequests() {
       )}
 
       {/* Modal 2: Delete Request Confirmation */}
-      {deleteModalId && (
-        <div className="modal-overlay" onClick={() => setDeleteModalId(null)}>
+      {deleteModalReq && (
+        <div className="modal-overlay" onClick={() => !deleting && setDeleteModalReq(null)}>
           <div className="modal-content" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1.25rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.25rem', color: 'var(--error, #ef4444)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Trash2 size={22} />
               <span>Delete Pickup Record?</span>
             </h2>
             <p style={{ margin: '1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              Are you sure you want to permanently delete request <strong>#{deleteModalId}</strong>? This removes the record from the nationwide ledger.
+              Are you sure you want to permanently delete request <strong>#{deleteModalReq.requestId}</strong>? This removes the record from the nationwide ledger.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => setDeleteModalId(null)}
+                onClick={() => setDeleteModalReq(null)}
+                disabled={deleting}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }}
-                onClick={() => handleConfirmDelete(deleteModalId)}
+                style={{ background: 'var(--error, #ef4444)', borderColor: 'var(--error, #ef4444)' }}
+                onClick={() => handleConfirmDelete(deleteModalReq)}
+                disabled={deleting}
               >
-                Delete Record
+                {deleting ? 'Deleting...' : 'Delete Record'}
               </button>
             </div>
           </div>
@@ -335,7 +417,7 @@ export default function AdminRequests() {
             </button>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingRight: '2rem' }}>
-              <h2 style={{ fontSize: '1.35rem' }}>Audit: Request #{detailsModalReq.id}</h2>
+              <h2 style={{ fontSize: '1.35rem' }}>Audit: Request #{detailsModalReq.requestId}</h2>
               <StatusBadge status={detailsModalReq.status} />
             </div>
 
@@ -345,11 +427,10 @@ export default function AdminRequests() {
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                 <div><strong>Citizen:</strong> {detailsModalReq.userName} ({detailsModalReq.userPhone})</div>
                 <div><strong>District / Location:</strong> {detailsModalReq.district} - {detailsModalReq.address}</div>
-                <div><strong>Preferred Schedule:</strong> {detailsModalReq.preferredDate} ({detailsModalReq.preferredTime})</div>
               </div>
 
               <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-                <div><strong>Plastic Stream:</strong> {detailsModalReq.plasticTypes.join(', ')}</div>
+                <div><strong>Plastic Stream:</strong> {(detailsModalReq.plasticTypes || []).join(', ')}</div>
                 <div><strong>Estimated / Verified Weight:</strong> {detailsModalReq.estimatedKg} kg {detailsModalReq.verifiedKg ? `(Verified: ${detailsModalReq.verifiedKg} kg)` : ''}</div>
                 {detailsModalReq.notes && <div><strong>Notes:</strong> "{detailsModalReq.notes}"</div>}
               </div>

@@ -1,28 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useData } from '../../context/DataContext'
 import { useToast } from '../../context/ToastContext'
+import { 
+  getAdminFacilities, 
+  createAdminFacility,
+} from '../../services/api'
 import { 
   Building, 
   PlusCircle, 
   MapPin, 
   Phone, 
-  ShieldCheck, 
   Recycle, 
   Flame, 
-  Layers, 
   Search,
   CheckCircle2,
+  RefreshCw,
   X
 } from 'lucide-react'
 
 export default function AdminFacilities() {
-  const { facilities, addFacility, divisions, allDistricts } = useData()
   const { addToast } = useToast()
 
+  const [facilities, setFacilities] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [districtFilter, setDistrictFilter] = useState('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   // Add Facility Form
   const [name, setName] = useState('')
@@ -31,7 +36,7 @@ export default function AdminFacilities() {
   const [type, setType] = useState('Mechanical Recycling & Flaking')
   const [dailyCapacityTons, setDailyCapacityTons] = useState(50)
   const [contactPerson, setContactPerson] = useState('')
-  const [contactPhone, setContactPhone] = useState('+880 ')
+  const [contactPhone, setContactPhone] = useState('+880 1711-223344')
   const [acceptedTypes, setAcceptedTypes] = useState(['PET Bottles', 'HDPE Containers'])
 
   const availablePlasticTypes = [
@@ -42,6 +47,26 @@ export default function AdminFacilities() {
     'Mixed Plastics',
     'Non-recyclable Multilayer Plastics'
   ]
+
+  const fetchFacilities = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const res = await getAdminFacilities()
+      if (res.success) {
+        setFacilities(res.data)
+      }
+    } catch (err) {
+      console.error('Failed to load facilities:', err)
+      setError(err.message || 'Error loading facilities from server')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchFacilities()
+  }, [])
 
   const toggleType = (t) => {
     if (acceptedTypes.includes(t)) {
@@ -55,35 +80,44 @@ export default function AdminFacilities() {
 
   const filteredFacilities = facilities.filter(fac => {
     const matchesDistrict = districtFilter === 'all' || fac.district === districtFilter
-    const matchesSearch = fac.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          fac.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          fac.type.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = (fac.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (fac.location || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (fac.type || '').toLowerCase().includes(searchQuery.toLowerCase())
     return matchesDistrict && matchesSearch
   })
 
-  const handleAddFacilitySubmit = (e) => {
+  const handleAddFacilitySubmit = async (e) => {
     e.preventDefault()
-    if (!name || !location || !contactPerson) {
-      addToast('Please provide all facility details.', 'warning')
+    if (!name || !location) {
+      addToast('Please provide name and location.', 'warning')
       return
     }
 
-    addFacility({
-      name,
-      district,
-      location,
-      type,
-      dailyCapacityTons: Number(dailyCapacityTons),
-      contactPerson,
-      contactPhone,
-      acceptedTypes
-    })
+    try {
+      setCreating(true)
+      const res = await createAdminFacility({
+        name,
+        district,
+        location,
+        type,
+        dailyCapacityTons: Number(dailyCapacityTons),
+        contactPerson: contactPerson || 'Facility Operations Manager',
+        contactPhone,
+        acceptedTypes
+      })
 
-    setIsAddModalOpen(false)
-    setName('')
-    setLocation('')
-    setContactPerson('')
-    addToast(`Facility "${name}" in ${district} registered into national database!`, 'success')
+      if (res.success) {
+        setIsAddModalOpen(false)
+        setName('')
+        setLocation('')
+        addToast(`Facility "${name}" in ${district} registered into MongoDB database!`, 'success')
+        fetchFacilities()
+      }
+    } catch (err) {
+      addToast(err.message || 'Failed to create facility', 'error')
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
@@ -107,15 +141,33 @@ export default function AdminFacilities() {
             </p>
           </div>
 
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setIsAddModalOpen(true)}
-          >
-            <PlusCircle size={16} />
-            <span>Register New Facility</span>
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={fetchFacilities}
+              disabled={loading}
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              <PlusCircle size={16} />
+              <span>Register New Facility</span>
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="card" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b', marginBottom: '1.5rem', padding: '1rem' }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
 
         {/* Toolbar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -138,103 +190,115 @@ export default function AdminFacilities() {
               onChange={e => setDistrictFilter(e.target.value)}
             >
               <option value="all">All Districts ({facilities.length} Plants)</option>
-              {Object.entries(divisions).map(([divName, distList]) => (
-                <optgroup key={divName} label={divName}>
-                  {distList.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </optgroup>
-              ))}
+              <option value="Dhaka">Dhaka</option>
+              <option value="Gazipur">Gazipur</option>
+              <option value="Chattogram">Chattogram</option>
+              <option value="Narayanganj">Narayanganj</option>
+              <option value="Khulna">Khulna</option>
+              <option value="Sylhet">Sylhet</option>
             </select>
           </div>
 
           <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-            Showing <strong>{filteredFacilities.length}</strong> active authorized facilities
+            Showing <strong>{filteredFacilities.length}</strong> facilities
           </div>
         </div>
 
         {/* Facilities Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
-          {filteredFacilities.map(fac => {
-            const isEnergy = fac.type.includes('Energy') || fac.type.includes('RDF')
-            return (
-              <div key={fac.id} className="card" style={{ padding: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                    <div style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 'var(--radius-md)',
-                      background: isEnergy ? 'var(--warm-accent-light)' : 'var(--primary-light)',
-                      color: isEnergy ? 'var(--warm-accent)' : 'var(--primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
-                    }}>
-                      {isEnergy ? <Flame size={24} /> : <Recycle size={24} />}
+        {loading ? (
+          <div className="card" style={{ textAlign: 'center', padding: '3.5rem' }}>
+            <p style={{ color: 'var(--text-secondary)' }}>Loading facilities from MongoDB...</p>
+          </div>
+        ) : filteredFacilities.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '3.5rem', background: 'var(--bg-surface-elevated)' }}>
+            <h3>No facilities found</h3>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+              No registered plants match the current search filter.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            {filteredFacilities.map(fac => {
+              const isEnergy = (fac.type || '').includes('Energy') || (fac.type || '').includes('RDF')
+              return (
+                <div key={fac._id || fac.id} className="card" style={{ padding: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                      <div style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 'var(--radius-md)',
+                        background: isEnergy ? 'var(--warm-accent-light, #fef3c7)' : 'var(--primary-light)',
+                        color: isEnergy ? 'var(--warm-accent, #d97706)' : 'var(--primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        {isEnergy ? <Flame size={24} /> : <Recycle size={24} />}
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '1.15rem' }}>{fac.name}</h3>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                          {fac.type}
+                        </div>
+                      </div>
                     </div>
+
+                    <span className="badge badge-success">
+                      <CheckCircle2 size={12} /> {fac.status || 'Operational'}
+                    </span>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', margin: '1rem 0', fontSize: '0.88rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+                      <MapPin size={14} color="var(--primary)" /> <span><strong>{fac.district}:</strong> {fac.location}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+                      <Phone size={14} /> <span>Contact: {fac.contactPerson || 'Ops Manager'} ({fac.contactPhone || '+880 1711-223344'})</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.15rem' }}>{fac.name}</h3>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                        ID: {fac.id} • {fac.type}
+                      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Daily Capacity</div>
+                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
+                        {fac.dailyCapacityTons || 50} Tons / Day
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Total Received</div>
+                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.15rem' }}>
+                        {((fac.totalReceivedKg || 0) / 1000).toFixed(1)} Tons
                       </div>
                     </div>
                   </div>
 
-                  <span className="badge badge-success">
-                    <CheckCircle2 size={12} /> {fac.status}
-                  </span>
-                </div>
-
-                <div style={{ background: 'var(--bg-surface-elevated)', padding: '1rem', borderRadius: 'var(--radius-md)', margin: '1rem 0', fontSize: '0.88rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
-                    <MapPin size={14} color="var(--primary)" /> <span><strong>{fac.district}:</strong> {fac.location}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
-                    <Phone size={14} /> <span>Contact: {fac.contactPerson} ({fac.contactPhone})</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
                   <div>
-                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Daily Processing Capacity</div>
-                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
-                      {fac.dailyCapacityTons} Tons / Day
+                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.35rem' }}>
+                      Accepted Feedstocks:
                     </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Total Received Plastic</div>
-                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.15rem' }}>
-                      {((fac.totalReceivedKg || 0) / 1000).toFixed(1)} Tons
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      {(fac.acceptedTypes || ['PET Bottles', 'HDPE Containers']).map(t => (
+                        <span key={t} className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                          {t}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
-
-                <div>
-                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.35rem' }}>
-                    Accepted Waste Feedstocks:
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                    {fac.acceptedTypes.map(t => (
-                      <span key={t} className="badge badge-success" style={{ fontSize: '0.75rem' }}>
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Modal: Register Facility */}
       {isAddModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+        <div className="modal-overlay" onClick={() => !creating && setIsAddModalOpen(false)}>
           <div className="modal-content" style={{ maxWidth: '620px' }} onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setIsAddModalOpen(false)}>
+            <button className="modal-close" onClick={() => !creating && setIsAddModalOpen(false)}>
               <X size={18} />
             </button>
 
@@ -268,9 +332,13 @@ export default function AdminFacilities() {
                     onChange={e => setDistrict(e.target.value)}
                     required
                   >
-                    {allDistricts.map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
+                    <option value="Dhaka">Dhaka</option>
+                    <option value="Gazipur">Gazipur</option>
+                    <option value="Chattogram">Chattogram</option>
+                    <option value="Narayanganj">Narayanganj</option>
+                    <option value="Khulna">Khulna</option>
+                    <option value="Sylhet">Sylhet</option>
+                    <option value="Rajshahi">Rajshahi</option>
                   </select>
                 </div>
 
@@ -301,28 +369,15 @@ export default function AdminFacilities() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label className="form-label">Daily Capacity (Tons)</label>
+                  <label className="form-label">Daily Capacity (Tons/Day)</label>
                   <input
                     type="number"
-                    min="5"
-                    max="1000"
+                    min="1"
                     className="form-input"
                     value={dailyCapacityTons}
-                    onChange={e => setDailyCapacityTons(Number(e.target.value))}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Contact Person</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Engr. Name"
-                    value={contactPerson}
-                    onChange={e => setContactPerson(e.target.value)}
+                    onChange={e => setDailyCapacityTons(e.target.value)}
                     required
                   />
                 </div>
@@ -334,41 +389,7 @@ export default function AdminFacilities() {
                     className="form-input"
                     value={contactPhone}
                     onChange={e => setContactPhone(e.target.value)}
-                    required
                   />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Accepted Plastic Feedstock Types</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                  {availablePlasticTypes.map(t => {
-                    const isChecked = acceptedTypes.includes(t)
-                    return (
-                      <div
-                        key={t}
-                        onClick={() => toggleType(t)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: 'var(--radius-sm)',
-                          border: `1px solid ${isChecked ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                          background: isChecked ? 'var(--primary-light)' : 'var(--bg-surface)',
-                          cursor: 'pointer',
-                          fontSize: '0.82rem'
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                        />
-                        <span>{t}</span>
-                      </div>
-                    )
-                  })}
                 </div>
               </div>
 
@@ -378,6 +399,7 @@ export default function AdminFacilities() {
                   className="btn btn-secondary"
                   style={{ flex: 1 }}
                   onClick={() => setIsAddModalOpen(false)}
+                  disabled={creating}
                 >
                   Cancel
                 </button>
@@ -385,9 +407,9 @@ export default function AdminFacilities() {
                   type="submit"
                   className="btn btn-primary"
                   style={{ flex: 1.5 }}
+                  disabled={creating}
                 >
-                  <PlusCircle size={16} />
-                  <span>Register Facility</span>
+                  {creating ? 'Registering...' : 'Register Facility'}
                 </button>
               </div>
             </form>
