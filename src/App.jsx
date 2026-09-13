@@ -24,6 +24,7 @@ import AdminUsers from './pages/admin/AdminUsers'
 import AdminCollectors from './pages/admin/AdminCollectors'
 import AdminRequests from './pages/admin/AdminRequests'
 import AdminFacilities from './pages/admin/AdminFacilities'
+import AdminProfile from './pages/admin/AdminProfile'
 
 import NotFound from './pages/NotFound'
 
@@ -210,6 +211,15 @@ return ( <ThemeProvider> <ToastProvider> <AuthRoleProvider> <DataProvider> <Brow
                   element={
                     <ProtectedRoute allowedRoles={['admin']}>
                       <AdminFacilities />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="profile"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminProfile />
                     </ProtectedRoute>
                   }
                 />

@@ -15,11 +15,9 @@ import {
   Building,
   Users,
   ListOrdered,
-  LogOut,
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAuthRole } from '../context/AuthRoleContext'
-import { logoutUser } from '../services/api'
 import CommandPalette from './CommandPalette'
 
 export default function Navbar() {
@@ -59,6 +57,7 @@ export default function Navbar() {
       { label: 'Collectors', path: '/admin/collectors', icon: Truck },
       { label: 'Requests', path: '/admin/requests', icon: ListOrdered },
       { label: 'Facilities', path: '/admin/facilities', icon: Building },
+      { label: 'Profile', path: '/admin/profile', icon: User },
     ],
   }
 
@@ -72,13 +71,6 @@ export default function Navbar() {
       : currentRole === 'collector'
       ? '/collector/dashboard'
       : '/user/dashboard'
-
-  const handleSignOut = async () => {
-    if (window.confirm('Are you sure you want to sign out from EcoCycle?')) {
-      await logoutUser()
-      window.location.href = '/login'
-    }
-  }
 
   return (
     <>
@@ -150,18 +142,6 @@ export default function Navbar() {
                 </button>
               )}
 
-              {/* Desktop Sign Out Button */}
-              <button
-                type="button"
-                className="btn btn-outline btn-sm desktop-only"
-                style={{ color: 'var(--error, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                onClick={handleSignOut}
-                title="Sign Out from account"
-              >
-                <LogOut size={15} />
-                <span>Sign Out</span>
-              </button>
-
               <button
                 type="button"
                 className="btn-icon mobile-toggle"
@@ -221,8 +201,8 @@ export default function Navbar() {
               })}
             </ul>
 
-            <div className="mobile-actions" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {actualRole === 'user' && currentRole === 'user' && (
+            {actualRole === 'user' && currentRole === 'user' && (
+              <div className="mobile-actions" style={{ marginTop: '1rem' }}>
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -235,29 +215,8 @@ export default function Navbar() {
                   <PlusCircle size={16} />
                   <span>Request Plastic Pickup</span>
                 </button>
-              )}
-
-              <button
-                type="button"
-                className="btn btn-outline"
-                style={{
-                  width: '100%',
-                  color: 'var(--error, #ef4444)',
-                  borderColor: 'rgba(239, 68, 68, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                }}
-                onClick={() => {
-                  closeMobile()
-                  handleSignOut()
-                }}
-              >
-                <LogOut size={16} />
-                <span>Sign Out</span>
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         )}
       </header>

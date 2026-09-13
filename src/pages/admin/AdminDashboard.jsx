@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthRole } from '../../context/AuthRoleContext'
-import { getAdminStats, getAdminRequests, logoutUser } from '../../services/api'
+import { getAdminStats, getAdminRequests } from '../../services/api'
 import StatusBadge from '../../components/StatusBadge'
 import { 
   Shield, 
@@ -13,7 +13,6 @@ import {
   MapPin, 
   ArrowRight, 
   Clock,
-  LogOut,
   RefreshCw
 } from 'lucide-react'
 
@@ -67,12 +66,7 @@ export default function AdminDashboard() {
     fetchDashboardData()
   }, [])
 
-  const handleSignOut = async () => {
-    if (window.confirm('Are you sure you want to sign out from Admin Portal?')) {
-      await logoutUser()
-      window.location.href = '/login'
-    }
-  }
+
 
   const totalTonsDiverted = (stats.totalRecycledKg / 1000).toFixed(2)
 
@@ -86,7 +80,7 @@ export default function AdminDashboard() {
   return (
     <div className="section">
       <div className="container">
-        {/* Admin Header with Sign Out */}
+        {/* Admin Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2.5rem' }}>
           <div>
             <span className="section-tag">
@@ -128,17 +122,6 @@ export default function AdminDashboard() {
             >
               <Building size={15} />
               <span>Facilities ({stats.totalFacilities})</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              style={{ color: 'var(--error, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-              onClick={handleSignOut}
-              title="Sign Out from account"
-            >
-              <LogOut size={15} />
-              <span>Sign Out</span>
             </button>
           </div>
         </div>

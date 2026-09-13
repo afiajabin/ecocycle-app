@@ -1,30 +1,30 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthRole } from '../../context/AuthRoleContext'
 import { useToast } from '../../context/ToastContext'
 import { getMyProfile, updateMyProfile, logoutUser } from '../../services/api'
 import { 
-  Truck, 
+  Shield, 
   MapPin, 
   Phone, 
-  Star, 
-  ShieldCheck,
-  Save,
-  RefreshCw
+  Mail, 
+  ShieldCheck, 
+  Save, 
+  RefreshCw,
+  Award,
+  Lock,
+  Activity
 } from 'lucide-react'
 
-export default function CollectorProfile() {
+export default function AdminProfile() {
   const { userProfile, updateCurrentUserProfile } = useAuthRole()
   const { addToast } = useToast()
+  const navigate = useNavigate()
 
   const [name, setName] = useState(userProfile.name || '')
+  const [email, setEmail] = useState(userProfile.email || '')
   const [phone, setPhone] = useState(userProfile.phone || '')
-  const [district, setDistrict] = useState(userProfile.district || 'Dhaka')
-  const [vehicleNumber, setVehicleNumber] = useState(userProfile.vehicleNumber || '')
-  const [vehicleType, setVehicleType] = useState(userProfile.vehicleType || '')
-  const [assignedDistricts, setAssignedDistricts] = useState(userProfile.assignedDistricts || ['Dhaka', 'Gazipur'])
-  const [totalCollections, setTotalCollections] = useState(userProfile.totalCollections || 0)
-  const [rating, setRating] = useState(userProfile.rating || 4.9)
+  const [district, setDistrict] = useState(userProfile.district || 'Dhaka Central')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -35,16 +35,12 @@ export default function CollectorProfile() {
       if (res.success && res.data) {
         const u = res.data
         setName(u.name || '')
+        setEmail(u.email || '')
         setPhone(u.phone || '')
-        setDistrict(u.district || 'Dhaka')
-        setVehicleNumber(u.vehicleNumber || '')
-        setVehicleType(u.vehicleType || '')
-        setAssignedDistricts(u.assignedDistricts || [u.district || 'Dhaka'])
-        setTotalCollections(u.totalCollections || 0)
-        setRating(u.rating || 4.9)
+        setDistrict(u.district || 'Dhaka Central')
       }
     } catch (err) {
-      console.error('Error fetching collector profile:', err)
+      console.error('Error fetching admin profile:', err)
     } finally {
       setLoading(false)
     }
@@ -62,8 +58,6 @@ export default function CollectorProfile() {
         name,
         phone,
         district,
-        vehicleNumber,
-        vehicleType,
       })
 
       if (res.success) {
@@ -71,20 +65,18 @@ export default function CollectorProfile() {
           name,
           phone,
           district,
-          vehicleNumber,
-          vehicleType,
         })
-        addToast('Collector operational profile updated successfully!', 'success')
+        addToast('Admin security profile updated successfully!', 'success')
       }
     } catch (err) {
-      addToast(err.message || 'Failed to save profile', 'error')
+      addToast(err.message || 'Failed to update admin profile', 'error')
     } finally {
       setSaving(false)
     }
   }
 
   const handleSignOut = async () => {
-    if (window.confirm('Are you sure you want to sign out from Collector portal?')) {
+    if (window.confirm('Are you sure you want to sign out from Admin Portal?')) {
       await logoutUser()
       window.location.href = '/login'
     }
@@ -95,20 +87,20 @@ export default function CollectorProfile() {
       <div className="container" style={{ maxWidth: '840px' }}>
         {/* Breadcrumb */}
         <div className="breadcrumb-nav">
-          <Link to="/collector/dashboard" className="breadcrumb-link">Collector Dashboard</Link>
+          <Link to="/admin/dashboard" className="breadcrumb-link">Admin Dashboard</Link>
           <span>/</span>
-          <span className="breadcrumb-current">Collector Profile</span>
+          <span className="breadcrumb-current">Admin Profile</span>
         </div>
 
         <div className="section-header" style={{ textAlign: 'left', margin: '0 0 2.5rem 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <span className="section-tag">
-                <Truck size={14} /> Field Logistics Profile
+                <Shield size={14} /> National Administration Authority
               </span>
-              <h1 className="section-title">Collector Identification & Fleet Profile</h1>
+              <h1 className="section-title">System Administrator Profile</h1>
               <p className="section-desc">
-                Manage your registered contact details, vehicle registration ID, and view your district jurisdiction authorization.
+                Review your national command authorization credentials, manage administrative contact details, and view security tier permissions.
               </p>
             </div>
 
@@ -118,6 +110,7 @@ export default function CollectorProfile() {
                 className="btn btn-outline btn-sm"
                 onClick={fetchProfile}
                 disabled={loading}
+                title="Refresh profile data"
               >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                 <span>Refresh</span>
@@ -126,8 +119,8 @@ export default function CollectorProfile() {
           </div>
         </div>
 
-        {/* Collector ID Banner */}
-        <div className="wallet-banner" style={{ padding: '2rem', marginBottom: '2.5rem' }}>
+        {/* Admin Authority Banner */}
+        <div className="wallet-banner" style={{ padding: '2rem', marginBottom: '2.5rem', background: 'linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
             <div style={{
               width: 64,
@@ -141,18 +134,18 @@ export default function CollectorProfile() {
               fontSize: '1.5rem',
               fontWeight: 800
             }}>
-              {name ? name.slice(0, 2).toUpperCase() : 'CO'}
+              {name ? name.slice(0, 2).toUpperCase() : 'AD'}
             </div>
             <div>
-              <div style={{ fontSize: '0.82rem', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Authorized District Waste Collector • Bangladesh
+              <div style={{ fontSize: '0.82rem', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <ShieldCheck size={14} /> EcoCycle Bangladesh • Central Administrator
               </div>
-              <h2 style={{ color: '#ffffff', fontSize: '1.6rem', marginTop: '0.2rem' }}>{name}</h2>
+              <h2 style={{ color: '#ffffff', fontSize: '1.6rem', marginTop: '0.2rem' }}>{name || 'System Admin'}</h2>
               <div style={{ fontSize: '0.88rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.2rem' }}>
-                <span>District: <strong>{district}</strong></span>
+                <span>HQ / District: <strong>{district}</strong></span>
                 <span>•</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <Star size={14} fill="#facc15" color="#facc15" /> {rating} Rating
+                  <Award size={14} fill="#facc15" color="#facc15" /> Super Admin Tier 1
                 </span>
               </div>
             </div>
@@ -160,46 +153,50 @@ export default function CollectorProfile() {
 
           <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>Total Collections</div>
-              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: 800 }}>
-                {totalCollections}
+              <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>Authorization Scope</div>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800 }}>
+                All 64 Districts
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>Assigned Districts</div>
-              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700, marginTop: '0.35rem' }}>
-                {assignedDistricts.join(', ')}
+              <div style={{ fontSize: '0.78rem', opacity: 0.85 }}>Security Status</div>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 700, marginTop: '0.15rem', color: '#a7f3d0' }}>
+                Verified Root Active
               </div>
             </div>
           </div>
         </div>
 
-        {/* Assigned Districts Card */}
+        {/* System Authorization Card */}
         <div className="card" style={{ marginBottom: '2rem', padding: '1.75rem', background: 'var(--bg-surface-elevated)' }}>
           <h2 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <MapPin size={18} color="var(--primary)" />
-            <span>District Jurisdiction Authorization</span>
+            <Lock size={18} color="var(--primary)" />
+            <span>Administrative Privileges & Scope</span>
           </h2>
           <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-            Your account is assigned by the EcoCycle Central Administration to handle plastic collection across the following districts:
+            As a central administrator, this verified account holds unrestricted operational management rights:
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {assignedDistricts.map(d => (
-              <span key={d} className="badge badge-success" style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
-                <ShieldCheck size={14} /> District: {d}
-              </span>
-            ))}
+            <span className="badge badge-success" style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
+              <ShieldCheck size={14} /> Full 64-District Logistics Command
+            </span>
+            <span className="badge badge-primary" style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
+              <Activity size={14} /> Collector & User Account Governance
+            </span>
+            <span className="badge badge-accent" style={{ fontSize: '0.85rem', padding: '0.35rem 0.85rem' }}>
+              <Award size={14} /> Recycling Facility Authorizations
+            </span>
           </div>
         </div>
 
-        {/* Form Settings */}
+        {/* Edit Form */}
         <div className="card" style={{ padding: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Vehicle & Contact Details</h2>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Administrator Details</h2>
 
           <form onSubmit={handleSave}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
               <div className="form-group">
-                <label className="form-label">Collector Name</label>
+                <label className="form-label">Full Name</label>
                 <input
                   type="text"
                   className="form-input"
@@ -210,36 +207,37 @@ export default function CollectorProfile() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Phone Number</label>
+                <label className="form-label">Admin Email Address</label>
                 <input
-                  type="text"
+                  type="email"
                   className="form-input"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  required
+                  value={email}
+                  disabled
+                  style={{ opacity: 0.75, cursor: 'not-allowed' }}
                 />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginTop: '1rem' }}>
               <div className="form-group">
-                <label className="form-label">Assigned Vehicle Type</label>
+                <label className="form-label">Direct Contact Phone</label>
                 <input
                   type="text"
                   className="form-input"
-                  value={vehicleType}
-                  onChange={e => setVehicleType(e.target.value)}
-                  required
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+880 1700-000000"
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Vehicle Registration Plate Number</label>
+                <label className="form-label">Headquarters / Primary District</label>
                 <input
                   type="text"
                   className="form-input"
-                  value={vehicleNumber}
-                  onChange={e => setVehicleNumber(e.target.value)}
+                  value={district}
+                  onChange={e => setDistrict(e.target.value)}
+                  placeholder="e.g. Dhaka Central"
                   required
                 />
               </div>
@@ -267,7 +265,7 @@ export default function CollectorProfile() {
                 disabled={saving}
               >
                 <Save size={16} />
-                <span>{saving ? 'Saving...' : 'Save Collector Profile'}</span>
+                <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
               </button>
             </div>
           </form>

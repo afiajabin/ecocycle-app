@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthRole } from '../../context/AuthRoleContext'
-import { getCollectorStats, getDistrictRequests, logoutUser } from '../../services/api'
+import { getCollectorStats, getDistrictRequests } from '../../services/api'
 import StatusBadge from '../../components/StatusBadge'
 import { 
   Truck, 
@@ -11,7 +11,6 @@ import {
   Building, 
   ArrowRight, 
   Recycle, 
-  LogOut,
   RefreshCw,
   Phone
 } from 'lucide-react'
@@ -64,17 +63,12 @@ export default function CollectorDashboard() {
     fetchDashboardData()
   }, [])
 
-  const handleSignOut = async () => {
-    if (window.confirm('Are you sure you want to sign out from Collector portal?')) {
-      await logoutUser()
-      window.location.href = '/login'
-    }
-  }
+
 
   return (
     <div className="section">
       <div className="container">
-        {/* Collector Welcome & Header with Sign Out */}
+        {/* Collector Welcome & Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2.5rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
@@ -115,17 +109,6 @@ export default function CollectorDashboard() {
             >
               <span>Manage Requests ({districtRequests.length})</span>
               <ArrowRight size={15} />
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              style={{ color: 'var(--error, #ef4444)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-              onClick={handleSignOut}
-              title="Sign Out from account"
-            >
-              <LogOut size={15} />
-              <span>Sign Out</span>
             </button>
           </div>
         </div>
