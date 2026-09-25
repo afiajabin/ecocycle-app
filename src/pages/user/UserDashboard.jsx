@@ -176,15 +176,6 @@ export default function UserDashboard() {
           >
             <button
               type="button"
-              className="btn btn-primary"
-              onClick={() => navigate('/user/request-pickup')}
-            >
-              <PlusCircle size={17} />
-              <span>Submit Pickup Request</span>
-            </button>
-
-            <button
-              type="button"
               className="btn btn-secondary"
               onClick={() => navigate('/user/my-requests')}
             >

@@ -4,7 +4,6 @@ import {
   Recycle,
   Sun,
   Moon,
-  Search,
   Menu,
   X,
   PlusCircle,
@@ -41,27 +40,82 @@ export default function Navbar() {
 
   const roleNavItems = {
     user: [
-      { label: 'Dashboard', path: '/user/dashboard', icon: LayoutDashboard },
-      { label: 'Request Pickup', path: '/user/request-pickup', icon: PlusCircle },
-      { label: 'My Requests', path: '/user/my-requests', icon: FileText },
-      { label: 'Profile', path: '/user/profile', icon: User },
+      {
+        label: 'Dashboard',
+        path: '/user/dashboard',
+        icon: LayoutDashboard,
+      },
+      {
+        label: 'Request Pickup',
+        path: '/user/request-pickup',
+        icon: PlusCircle,
+      },
+      {
+        label: 'My Requests',
+        path: '/user/my-requests',
+        icon: FileText,
+      },
+      {
+        label: 'Profile',
+        path: '/user/profile',
+        icon: User,
+      },
     ],
+
     collector: [
-      { label: 'Dashboard', path: '/collector/dashboard', icon: LayoutDashboard },
-      { label: 'Requests', path: '/collector/requests', icon: ListOrdered },
-      { label: 'Profile', path: '/collector/profile', icon: User },
+      {
+        label: 'Dashboard',
+        path: '/collector/dashboard',
+        icon: LayoutDashboard,
+      },
+      {
+        label: 'Requests',
+        path: '/collector/requests',
+        icon: ListOrdered,
+      },
+      {
+        label: 'Profile',
+        path: '/collector/profile',
+        icon: User,
+      },
     ],
+
     admin: [
-      { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-      { label: 'Users', path: '/admin/users', icon: Users },
-      { label: 'Collectors', path: '/admin/collectors', icon: Truck },
-      { label: 'Requests', path: '/admin/requests', icon: ListOrdered },
-      { label: 'Facilities', path: '/admin/facilities', icon: Building },
-      { label: 'Profile', path: '/admin/profile', icon: User },
+      {
+        label: 'Dashboard',
+        path: '/admin/dashboard',
+        icon: LayoutDashboard,
+      },
+      {
+        label: 'Users',
+        path: '/admin/users',
+        icon: Users,
+      },
+      {
+        label: 'Collectors',
+        path: '/admin/collectors',
+        icon: Truck,
+      },
+      {
+        label: 'Requests',
+        path: '/admin/requests',
+        icon: ListOrdered,
+      },
+      {
+        label: 'Facilities',
+        path: '/admin/facilities',
+        icon: Building,
+      },
+      {
+        label: 'Profile',
+        path: '/admin/profile',
+        icon: User,
+      },
     ],
   }
 
-  const currentNavItems = roleNavItems[currentRole] || roleNavItems.user
+  const currentNavItems =
+    roleNavItems[currentRole] || roleNavItems.user
 
   const closeMobile = () => setIsMobileMenuOpen(false)
 
@@ -85,6 +139,7 @@ export default function Navbar() {
               <div className="brand-icon-wrapper">
                 <Recycle size={22} strokeWidth={2.4} />
               </div>
+
               <span>EcoCycle</span>
               <span className="brand-badge">BD</span>
             </Link>
@@ -92,6 +147,7 @@ export default function Navbar() {
             <ul className="nav-links">
               {currentNavItems.map(item => {
                 const Icon = item.icon
+
                 return (
                   <li key={item.path}>
                     <NavLink
@@ -109,46 +165,39 @@ export default function Navbar() {
             </ul>
 
             <div className="nav-actions">
-              <button
-                type="button"
-                className="nav-search-btn"
-                onClick={() => setIsCommandOpen(true)}
-                title="Search (Ctrl + K)"
-                aria-label="Search navigation"
-              >
-                <Search size={15} />
-                <span className="desktop-only">Search</span>
-                <span className="search-shortcut">⌘K</span>
-              </button>
+              {/* Search button removed */}
 
               <button
                 type="button"
                 className="btn-icon"
                 onClick={toggleTheme}
-                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                title={`Switch to ${
+                  theme === 'light' ? 'dark' : 'light'
+                } mode`}
                 aria-label="Toggle theme mode"
               >
-                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                {theme === 'light' ? (
+                  <Moon size={18} />
+                ) : (
+                  <Sun size={18} />
+                )}
               </button>
 
-              {actualRole === 'user' && currentRole === 'user' && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm desktop-only"
-                  onClick={() => navigate('/user/request-pickup')}
-                >
-                  <PlusCircle size={16} />
-                  <span>Request Pickup</span>
-                </button>
-              )}
+              {/* Desktop Request Pickup button removed */}
 
               <button
                 type="button"
                 className="btn-icon mobile-toggle"
-                onClick={() => setIsMobileMenuOpen(prev => !prev)}
+                onClick={() =>
+                  setIsMobileMenuOpen(prev => !prev)
+                }
                 aria-label="Toggle navigation menu"
               >
-                {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                {isMobileMenuOpen ? (
+                  <X size={20} />
+                ) : (
+                  <Menu size={20} />
+                )}
               </button>
             </div>
           </nav>
@@ -160,7 +209,8 @@ export default function Navbar() {
               style={{
                 marginBottom: '1rem',
                 paddingBottom: '0.75rem',
-                borderBottom: '1px solid var(--border-subtle)',
+                borderBottom:
+                  '1px solid var(--border-subtle)',
                 fontSize: '0.85rem',
                 color: 'var(--text-secondary)',
                 display: 'flex',
@@ -169,19 +219,24 @@ export default function Navbar() {
               }}
             >
               <div>
-                Signed in as <strong>{userProfile?.name}</strong> ({userProfile?.roleTitle})
+                Signed in as{' '}
+                <strong>{userProfile?.name}</strong>{' '}
+                ({userProfile?.roleTitle})
               </div>
             </div>
 
             <ul className="mobile-nav-list">
               {currentNavItems.map(item => {
                 const Icon = item.icon
+
                 return (
                   <li key={item.path}>
                     <NavLink
                       to={item.path}
                       className={({ isActive }) =>
-                        `mobile-nav-item ${isActive ? 'active' : ''}`
+                        `mobile-nav-item ${
+                          isActive ? 'active' : ''
+                        }`
                       }
                       onClick={closeMobile}
                     >
@@ -201,22 +256,27 @@ export default function Navbar() {
               })}
             </ul>
 
-            {actualRole === 'user' && currentRole === 'user' && (
-              <div className="mobile-actions" style={{ marginTop: '1rem' }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ width: '100%' }}
-                  onClick={() => {
-                    closeMobile()
-                    navigate('/user/request-pickup')
-                  }}
+            {/* Keep mobile Request Pickup functionality */}
+            {actualRole === 'user' &&
+              currentRole === 'user' && (
+                <div
+                  className="mobile-actions"
+                  style={{ marginTop: '1rem' }}
                 >
-                  <PlusCircle size={16} />
-                  <span>Request Plastic Pickup</span>
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                    onClick={() => {
+                      closeMobile()
+                      navigate('/user/request-pickup')
+                    }}
+                  >
+                    <PlusCircle size={16} />
+                    <span>Request Plastic Pickup</span>
+                  </button>
+                </div>
+              )}
           </div>
         )}
       </header>
