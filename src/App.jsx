@@ -1,3 +1,6 @@
+import { useEffect } from 'react'
+import { useCarbonFootprint } from 'react-carbon-footprint'
+
 import Login from './pages/Login'
 import Register from './pages/Register'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -34,196 +37,214 @@ import './styles/components.css'
 import './styles/pages.css'
 
 function ProtectedRoute({ allowedRoles, children }) {
-const { actualRole } = useAuthRole()
+  const { actualRole } = useAuthRole()
 
-const token = localStorage.getItem('token')
-const savedUser = localStorage.getItem('user')
+  const token = localStorage.getItem('token')
+  const savedUser = localStorage.getItem('user')
 
-if (!token || !savedUser) {
-return <Navigate to="/login" replace />
+  if (!token || !savedUser) {
+    return <Navigate to="/login" replace />
+  }
+
+  const roles = Array.isArray(allowedRoles)
+    ? allowedRoles
+    : [allowedRoles]
+
+  if (!actualRole || !roles.includes(actualRole)) {
+    const correctRoute =
+      actualRole === 'admin'
+        ? '/admin/dashboard'
+        : actualRole === 'collector'
+        ? '/collector/dashboard'
+        : '/user/dashboard'
+
+    return <Navigate to={correctRoute} replace />
+  }
+
+  return children
 }
 
-const roles = Array.isArray(allowedRoles)
-? allowedRoles
-: [allowedRoles]
+function CarbonFootprintTracker() {
+  const [gCO2, bytesTransferred] = useCarbonFootprint()
 
-if (!actualRole || !roles.includes(actualRole)) {
-const correctRoute =
-actualRole === 'admin'
-? '/admin/dashboard'
-: actualRole === 'collector'
-? '/collector/dashboard'
-: '/user/dashboard'
+  useEffect(() => {
+    console.log('EcoCycle Carbon Footprint')
+    console.log(`Data transferred: ${bytesTransferred} bytes`)
+    console.log(`Estimated CO2 emissions: ${gCO2.toFixed(4)} grams`)
+  }, [gCO2, bytesTransferred])
 
-return <Navigate to={correctRoute} replace />
-
-
-}
-
-return children
+  return null
 }
 
 export default function App() {
-return ( <ThemeProvider> <ToastProvider> <AuthRoleProvider> <DataProvider> <BrowserRouter> <Routes>
-<Route path="/" element={<Layout />}>
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthRoleProvider>
+          <DataProvider>
+            <BrowserRouter>
 
+              <CarbonFootprintTracker />
 
-              <Route index element={<Login />} />
-              <Route path="login" element={<Login />} />
-              <Route path="register" element={<Register />} />
+              <Routes>
+                <Route path="/" element={<Layout />}>
 
-              <Route path="portal" element={<PortalHome />} />
+                  <Route index element={<Login />} />
+                  <Route path="login" element={<Login />} />
+                  <Route path="register" element={<Register />} />
 
-              <Route path="user">
-                <Route
-                  index
-                  element={
-                    <ProtectedRoute allowedRoles={['user', 'admin']}>
-                      <Navigate to="/user/dashboard" replace />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route path="portal" element={<PortalHome />} />
 
-                <Route
-                  path="dashboard"
-                  element={
-                    <ProtectedRoute allowedRoles={['user', 'admin']}>
-                      <UserDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route path="user">
+                    <Route
+                      index
+                      element={
+                        <ProtectedRoute allowedRoles={['user', 'admin']}>
+                          <Navigate to="/user/dashboard" replace />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="request-pickup"
-                  element={
-                    <ProtectedRoute allowedRoles={['user', 'admin']}>
-                      <RequestPickup />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="dashboard"
+                      element={
+                        <ProtectedRoute allowedRoles={['user', 'admin']}>
+                          <UserDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="my-requests"
-                  element={
-                    <ProtectedRoute allowedRoles={['user', 'admin']}>
-                      <MyRequests />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="request-pickup"
+                      element={
+                        <ProtectedRoute allowedRoles={['user', 'admin']}>
+                          <RequestPickup />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="profile"
-                  element={
-                    <ProtectedRoute allowedRoles={['user', 'admin']}>
-                      <UserProfile />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
+                    <Route
+                      path="my-requests"
+                      element={
+                        <ProtectedRoute allowedRoles={['user', 'admin']}>
+                          <MyRequests />
+                        </ProtectedRoute>
+                      }
+                    />
 
-              <Route path="collector">
-                <Route
-                  index
-                  element={
-                    <ProtectedRoute allowedRoles={['collector', 'admin']}>
-                      <Navigate to="/collector/dashboard" replace />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="profile"
+                      element={
+                        <ProtectedRoute allowedRoles={['user', 'admin']}>
+                          <UserProfile />
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Route>
 
-                <Route
-                  path="dashboard"
-                  element={
-                    <ProtectedRoute allowedRoles={['collector', 'admin']}>
-                      <CollectorDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route path="collector">
+                    <Route
+                      index
+                      element={
+                        <ProtectedRoute allowedRoles={['collector', 'admin']}>
+                          <Navigate to="/collector/dashboard" replace />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="requests"
-                  element={
-                    <ProtectedRoute allowedRoles={['collector', 'admin']}>
-                      <CollectorRequests />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="dashboard"
+                      element={
+                        <ProtectedRoute allowedRoles={['collector', 'admin']}>
+                          <CollectorDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="profile"
-                  element={
-                    <ProtectedRoute allowedRoles={['collector', 'admin']}>
-                      <CollectorProfile />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
+                    <Route
+                      path="requests"
+                      element={
+                        <ProtectedRoute allowedRoles={['collector', 'admin']}>
+                          <CollectorRequests />
+                        </ProtectedRoute>
+                      }
+                    />
 
-              <Route path="admin">
-                <Route
-                  index
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <Navigate to="/admin/dashboard" replace />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="profile"
+                      element={
+                        <ProtectedRoute allowedRoles={['collector', 'admin']}>
+                          <CollectorProfile />
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Route>
 
-                <Route
-                  path="dashboard"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route path="admin">
+                    <Route
+                      index
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <Navigate to="/admin/dashboard" replace />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="users"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminUsers />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="dashboard"
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <AdminDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="collectors"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminCollectors />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="users"
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <AdminUsers />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="requests"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminRequests />
-                    </ProtectedRoute>
-                  }
-                />
+                    <Route
+                      path="collectors"
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <AdminCollectors />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="facilities"
-                  element={
-                    <ProtectedRoute allowedRoles={['admin']}>
-                      <AdminFacilities />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
+                    <Route
+                      path="requests"
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <AdminRequests />
+                        </ProtectedRoute>
+                      }
+                    />
 
-              <Route path="*" element={<NotFound />} />
+                    <Route
+                      path="facilities"
+                      element={
+                        <ProtectedRoute allowedRoles={['admin']}>
+                          <AdminFacilities />
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Route>
 
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </DataProvider>
-    </AuthRoleProvider>
-  </ToastProvider>
-</ThemeProvider>
+                  <Route path="*" element={<NotFound />} />
 
-)
+                </Route>
+              </Routes>
+
+            </BrowserRouter>
+          </DataProvider>
+        </AuthRoleProvider>
+      </ToastProvider>
+    </ThemeProvider>
+  )
 }
