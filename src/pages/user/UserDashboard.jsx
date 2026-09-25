@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthRole } from '../../context/AuthRoleContext'
 import { useToast } from '../../context/ToastContext'
@@ -174,15 +174,6 @@ export default function UserDashboard() {
               flexWrap: 'wrap',
             }}
           >
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => navigate('/user/request-pickup')}
-            >
-              <PlusCircle size={17} />
-              <span>Submit Pickup Request</span>
-            </button>
-
             <button
               type="button"
               className="btn btn-secondary"
