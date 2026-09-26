@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation, Link } from 'react-router-dom'
 import { Recycle } from 'lucide-react'
+import { useAuthRole } from '../context/AuthRoleContext'
 import RoleHeader from './RoleHeader'
 import Navbar from './Navbar'
 import Footer from './Footer'
@@ -8,9 +9,23 @@ import Footer from './Footer'
 export default function Layout() {
   const { pathname } = useLocation()
 
+  const { actualRole, currentRole, switchRole } = useAuthRole()
+
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
+
+  useEffect(() => {
+    if (actualRole === 'admin') {
+      if (pathname.startsWith('/collector') && currentRole !== 'collector') {
+        switchRole('collector')
+      } else if (pathname.startsWith('/user') && currentRole !== 'user') {
+        switchRole('user')
+      } else if (pathname.startsWith('/admin') && currentRole !== 'admin') {
+        switchRole('admin')
+      }
+    }
+  }, [pathname, actualRole, currentRole, switchRole])
 
   const isLoginPage =
     pathname === '/login' || pathname === '/'

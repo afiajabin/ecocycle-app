@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 export default function CollectorProfile() {
-  const { userProfile, updateCurrentUserProfile } = useAuthRole()
+  const { userProfile, updateCurrentUserProfile, actualRole } = useAuthRole()
   const { addToast } = useToast()
 
   const [name, setName] = useState(userProfile.name || '')
@@ -29,6 +29,9 @@ export default function CollectorProfile() {
   const [saving, setSaving] = useState(false)
 
   const fetchProfile = async () => {
+    if (actualRole === 'admin') {
+      return
+    }
     try {
       setLoading(true)
       const res = await getMyProfile()
@@ -51,8 +54,19 @@ export default function CollectorProfile() {
   }
 
   useEffect(() => {
-    fetchProfile()
-  }, [])
+    if (actualRole === 'admin') {
+      setName(userProfile.name || '')
+      setPhone(userProfile.phone || '')
+      setDistrict(userProfile.district || 'Dhaka')
+      setVehicleNumber(userProfile.vehicleNumber || '')
+      setVehicleType(userProfile.vehicleType || '')
+      setAssignedDistricts(userProfile.assignedDistricts || ['Dhaka', 'Gazipur'])
+      setTotalCollections(userProfile.totalCollections || 0)
+      setRating(userProfile.rating || 4.9)
+    } else {
+      fetchProfile()
+    }
+  }, [actualRole, userProfile])
 
   const handleSave = async (e) => {
     e.preventDefault()

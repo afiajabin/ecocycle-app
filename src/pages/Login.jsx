@@ -67,6 +67,7 @@ export default function Login() {
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
       localStorage.setItem('ecocycle-active-role', frontendRole)
+      localStorage.setItem('ecocycle-latest-' + frontendRole, JSON.stringify(user))
 
       alert('Login successful')
 

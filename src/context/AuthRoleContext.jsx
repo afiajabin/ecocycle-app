@@ -3,33 +3,58 @@ import { createContext, useContext, useState, useEffect } from 'react'
 const AuthRoleContext = createContext()
 
 export const MOCK_USERS = {
-user: {
-roleTitle: 'Citizen / Household',
-phone: '+880 1712-345678',
-address: 'House 42, Road 9A, Dhanmondi, Dhaka - 1209',
-memberSince: 'January 2026',
-totalRecycledKg: 48,
-totalRequests: 6,
-},
+  user: {
+    id: 'mock-citizen-1',
+    name: 'Sadia Sultana',
+    email: 'sadia.citizen@ecocycle.bd',
+    role: 'user',
+    roleTitle: 'Citizen / Household',
+    phone: '+880 1712-345678',
+    district: 'Dhaka',
+    address: 'House 42, Road 9A, Dhanmondi, Dhaka - 1209',
+    memberSince: 'January 2026',
+    totalRecycledKg: 48,
+    totalRequests: 6,
+  },
 
-collector: {
-roleTitle: 'District Plastic Collector',
-phone: '+880 1819-876543',
-district: 'Dhaka',
-assignedDistricts: ['Dhaka', 'Gazipur'],
-vehicleType: 'Electric Waste Van (EV-04)',
-vehicleNumber: 'Dhaka Metro-DH-11-2045',
-joinedDate: 'March 2025',
-rating: 4.9,
-totalCollections: 142,
-},
+  collector: {
+    id: 'mock-collector-1',
+    name: 'Afia Jabin',
+    email: 'afiajabin12@gmail.com',
+    role: 'collector',
+    roleTitle: 'District Plastic Collector',
+    phone: '+880 1712-345678',
+    district: 'Dhaka',
+    assignedDistricts: ['Dhaka', 'Gazipur'],
+    vehicleType: 'Electric Waste Van (EV-04)',
+    vehicleNumber: 'Dhaka Metro-DH-11-2045',
+    joinedDate: 'March 2025',
+    rating: 5.0,
+    totalCollections: 18,
+  },
 
-admin: {
-roleTitle: 'System Administrator',
-phone: '+880 1911-001122',
-district: 'Dhaka (HQ)',
-accessLevel: 'Super Administrator',
-},
+  admin: {
+    id: 'mock-admin-1',
+    name: 'Dr. Shahriar Rahman',
+    email: 'admin@ecocycle.bd',
+    role: 'admin',
+    roleTitle: 'System Administrator',
+    phone: '+880 1911-001122',
+    district: 'Dhaka (HQ)',
+    accessLevel: 'Super Administrator',
+  },
+}
+
+function getLatestRoleUser(role) {
+  try {
+    const saved = localStorage.getItem(`ecocycle-latest-${role}`)
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch (error) {
+    console.error(`Could not read latest user for role ${role}:`, error)
+  }
+  return null
 }
 
 function normalizeRole(role) {
@@ -117,9 +142,12 @@ try {
 })
 
 const [currentRole, setCurrentRole] = useState(() => {
+const savedActiveRole = localStorage.getItem('ecocycle-active-role')
+if (savedActiveRole && ['user', 'collector', 'admin'].includes(savedActiveRole)) {
+  return savedActiveRole
+}
+
 const savedUser = localStorage.getItem('user')
-
-
 if (!savedUser) {
   return 'user'
 }
@@ -131,8 +159,6 @@ try {
   console.error('Could not read current role:', error)
   return 'user'
 }
-
-
 })
 
 const [customProfiles, setCustomProfiles] = useState(() => {
@@ -171,9 +197,18 @@ const savedUser = localStorage.getItem('user')
     setLoggedInUser(user)
     setActualRole(role)
 
+    if (role) {
+      try {
+        localStorage.setItem(`ecocycle-latest-${role}`, JSON.stringify(user))
+      } catch (e) {}
+    }
+
+    const savedActive = localStorage.getItem('ecocycle-active-role')
     if (role !== 'admin') {
       setCurrentRole(role || 'user')
-    } else if (!['user', 'collector', 'admin'].includes(currentRole)) {
+    } else if (savedActive && ['user', 'collector', 'admin'].includes(savedActive)) {
+      setCurrentRole(savedActive)
+    } else {
       setCurrentRole('admin')
     }
   } catch (error) {
@@ -182,6 +217,12 @@ const savedUser = localStorage.getItem('user')
     setActualRole(null)
     setCurrentRole('user')
   }
+}
+
+if (loggedInUser && actualRole) {
+  try {
+    localStorage.setItem(`ecocycle-latest-${actualRole}`, JSON.stringify(loggedInUser))
+  } catch (e) {}
 }
 
 window.addEventListener('storage', syncLoggedInUser)
@@ -193,7 +234,7 @@ return () => {
 }
 
 
-}, [currentRole])
+}, [currentRole, loggedInUser, actualRole])
 
 useEffect(() => {
 if (loggedInUser && actualRole) {
@@ -201,31 +242,25 @@ localStorage.setItem('ecocycle-active-role', currentRole)
 }
 }, [currentRole, loggedInUser, actualRole])
 
-const roleDefaults = MOCK_USERS[actualRole || currentRole] || {}
+const activeRole = currentRole || actualRole || 'user'
+const roleDefaults = MOCK_USERS[activeRole] || {}
 
-const userProfile = loggedInUser
-? {
-...roleDefaults,
-...loggedInUser,
+let roleUser = null
 
+if (loggedInUser && actualRole === activeRole) {
+  roleUser = loggedInUser
+} else {
+  const latestForRole = getLatestRoleUser(activeRole)
+  roleUser = latestForRole || roleDefaults
+}
 
-    id: loggedInUser.id,
-    name: loggedInUser.name,
-    email: loggedInUser.email,
-    district: loggedInUser.district,
-
-    role: actualRole || currentRole,
-
-    roleTitle: getRoleTitle(actualRole || currentRole),
-
-    avatar: getAvatar(loggedInUser.name),
-  }
-: {
-    ...roleDefaults,
-    role: currentRole,
-    avatar: 'US',
-  }
-
+const userProfile = {
+  ...roleDefaults,
+  ...roleUser,
+  role: activeRole,
+  roleTitle: getRoleTitle(activeRole),
+  avatar: getAvatar(roleUser?.name || roleDefaults.name),
+}
 
 const switchRole = (newRole) => {
 if (!loggedInUser || !actualRole) {
@@ -280,6 +315,12 @@ localStorage.setItem(
   'user',
   JSON.stringify(updatedUser)
 )
+
+if (actualRole) {
+  try {
+    localStorage.setItem('ecocycle-latest-' + actualRole, JSON.stringify(updatedUser))
+  } catch (e) {}
+}
 
 setLoggedInUser(updatedUser)
 
